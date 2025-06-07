@@ -2,6 +2,7 @@ import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 import { isAfter, parseISO } from 'date-fns';
+import { ICalParserService, ParsedCalendar } from './ical-parser.service';
 
 export interface PerplexityResponse {
   choices: Array<{
@@ -20,10 +21,12 @@ export interface GetEventsOptions {
 export class PerplexityService {
   private readonly apiKey: string;
   private readonly baseUrl = 'https://api.perplexity.ai/chat/completions';
+  private readonly icalParser: ICalParserService;
   
   constructor() {
     // You'll need to set your API key here or pass it as a parameter
     this.apiKey = process.env.PERPLEXITY_API_KEY || 'your-api-key-here';
+    this.icalParser = new ICalParserService();
   }
 
   /**
@@ -48,7 +51,7 @@ export class PerplexityService {
         throw new Error('Both startDateTime and endDateTime must be provided together.');
       }
       const genreString = genre ? ` of genre "${genre}"` : '';
-      const prompt = `Give events${genreString} happening in ${location}${intervalString ? intervalString : ' this week'}. Only include events that are scheduled in the future.`;
+      const prompt = `Give events${genreString} happening in ${location}${intervalString ? intervalString : ' this week'}. Only include events that are scheduled in the future. Format the response as a valid ICAL (.ics) calendar file with proper VEVENT entries. Include event titles, descriptions, start/end times, and locations. Use proper ICAL formatting with BEGIN:VCALENDAR, VERSION:2.0, PRODID, and END:VCALENDAR structure.`;
       console.log(`Making API call to Perplexity with prompt: "${prompt}"`);
       const response = await axios.post<PerplexityResponse>(
         this.baseUrl,
@@ -71,8 +74,22 @@ export class PerplexityService {
         }
       );
       const eventsContent = response.data.choices[0]?.message?.content || 'No events found';
+      
+      // Parse and validate ICAL content
+      let parsedCalendar: ParsedCalendar | null = null;
+      try {
+        if (this.icalParser.isValidICalContent(eventsContent)) {
+          parsedCalendar = await this.icalParser.parseICalContent(eventsContent);
+          console.log(`Successfully parsed ${parsedCalendar.events.length} events from ICAL content`);
+        } else {
+          console.log('Content is not valid ICAL format, using fallback structure');
+        }
+      } catch (error) {
+        console.log('Failed to parse ICAL content, using fallback structure:', error);
+      }
+      
       // Save to file
-      await this.saveToFile(location, eventsContent, genre, startDateTime, endDateTime);
+      await this.saveToFile(location, eventsContent, genre, startDateTime, endDateTime, parsedCalendar);
       return eventsContent;
     } catch (error) {
       console.error('Error calling Perplexity API:', error);
@@ -84,29 +101,61 @@ export class PerplexityService {
   }
 
   // TODO Eventually remove this (replace with a database + ICAL integration)
-  private async saveToFile(location: string, content: string, genre?: string, startDateTime?: string, endDateTime?: string): Promise<void> {
+  private async saveToFile(location: string, content: string, genre?: string, startDateTime?: string, endDateTime?: string, parsedCalendar?: ParsedCalendar | null): Promise<void> {
     try {
-      // Create responses directory if it doesn't exist
-      const responsesDir = path.join(process.cwd(), 'responses');
-      if (!fs.existsSync(responsesDir)) {
-        fs.mkdirSync(responsesDir, { recursive: true });
+      // Create responses/ical directory if it doesn't exist
+      const icalDir = path.join(process.cwd(), 'responses', 'ical');
+      if (!fs.existsSync(icalDir)) {
+        fs.mkdirSync(icalDir, { recursive: true });
       }
+      
       // Generate filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const genrePart = genre ? `-${genre.toLowerCase().replace(/\s+/g, '-')}` : '';
-      const filename = `events-${location.toLowerCase().replace(/\s+/g, '-')}${genrePart}-${timestamp}.txt`;
-      const filepath = path.join(responsesDir, filename);
-      // Prepare content with metadata
-      const fileContent = `Events for ${location}${genre ? ` (Genre: ${genre})` : ''}
-Generated: ${new Date().toISOString()}
-Prompt: "Give events${genre ? ` of genre \"${genre}\"` : ''} happening in ${location}${startDateTime && endDateTime ? ` between ${startDateTime} and ${endDateTime}` : ' this week'}. Only include events that are scheduled in the future."
-${content}`;
-      // Write to file
-      fs.writeFileSync(filepath, fileContent, 'utf8');
-      console.log(`Response saved to: ${filepath}`);
+      const filename = `events-${location.toLowerCase().replace(/\s+/g, '-')}${genrePart}-${timestamp}.ics`;
+      const filepath = path.join(icalDir, filename);
+      
+      let icalContent = content;
+      
+      // If we have a parsed calendar, use the parser to create proper ICAL
+      if (parsedCalendar && parsedCalendar.events.length > 0) {
+        console.log(`Using parsed calendar with ${parsedCalendar.events.length} events`);
+        icalContent = this.icalParser.convertToICalString(parsedCalendar);
+      } else if (!content.includes('BEGIN:VCALENDAR')) {
+        // If Perplexity didn't return proper ICAL format, create a basic one with the content as description
+        console.log('Creating fallback ICAL structure');
+        icalContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Events API//Events Calendar//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Events for ${location}${genre ? ` (${genre})` : ''}
+X-WR-TIMEZONE:UTC
+BEGIN:VEVENT
+UID:events-${Date.now()}@events-api
+DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z')}
+DTSTART:${startDateTime ? parseISO(startDateTime).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z') : new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z')}
+DTEND:${endDateTime ? parseISO(endDateTime).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z') : new Date(Date.now() + 86400000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z')}
+SUMMARY:Events in ${location}${genre ? ` - ${genre}` : ''}
+DESCRIPTION:${content.replace(/\n/g, '\\n')}
+LOCATION:${location}
+END:VEVENT
+END:VCALENDAR`;
+      }
+      
+      // Write ICAL content to file
+      fs.writeFileSync(filepath, icalContent, 'utf8');
+      console.log(`✅ ICAL calendar saved to: ${filepath}`);
+      
+      // Also validate the saved ICAL
+      if (this.icalParser.isValidICalContent(icalContent)) {
+        console.log(`✅ ICAL validation successful`);
+      } else {
+        console.warn(`⚠️  ICAL validation failed, but file was saved`);
+      }
     } catch (error) {
-      console.error('Error saving to file:', error);
-      throw new Error('Failed to save response to file');
+      console.error('Error saving ICAL file:', error);
+      throw new Error('Failed to save ICAL calendar file');
     }
   }
 } 
