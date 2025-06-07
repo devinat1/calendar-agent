@@ -23,12 +23,27 @@ app.get('/health', (req, res) => {
 app.get('/events', async (req, res) => {
   try {
     const location = (req.query.location as string) || 'San Francisco';
-    console.log(`Fetching events for location: ${location}`);
+    const genre = req.query.genre as string;
+    const startDateTime = req.query.startDateTime as string;
+    const endDateTime = req.query.endDateTime as string;
     
-    const events = await perplexityService.getEventsForLocation(location);
+    console.log(`Fetching events for location: ${location}`, {
+      genre: genre || 'any',
+      startDateTime: startDateTime || 'not specified',
+      endDateTime: endDateTime || 'not specified'
+    });
+    
+    const events = await perplexityService.getEventsForLocation(location, {
+      genre,
+      startDateTime,
+      endDateTime
+    });
     
     res.json({
       location,
+      genre: genre || null,
+      startDateTime: startDateTime || null,
+      endDateTime: endDateTime || null,
       events,
       timestamp: new Date().toISOString()
     });
@@ -43,13 +58,25 @@ app.get('/events', async (req, res) => {
 
 app.post('/events', async (req, res) => {
   try {
-    const { location = 'San Francisco' } = req.body;
-    console.log(`Fetching events for location: ${location}`);
+    const { location = 'San Francisco', genre, startDateTime, endDateTime } = req.body;
     
-    const events = await perplexityService.getEventsForLocation(location);
+    console.log(`Fetching events for location: ${location}`, {
+      genre: genre || 'any',
+      startDateTime: startDateTime || 'not specified',
+      endDateTime: endDateTime || 'not specified'
+    });
+    
+    const events = await perplexityService.getEventsForLocation(location, {
+      genre,
+      startDateTime,
+      endDateTime
+    });
     
     res.json({
       location,
+      genre: genre || null,
+      startDateTime: startDateTime || null,
+      endDateTime: endDateTime || null,
       events,
       timestamp: new Date().toISOString()
     });
