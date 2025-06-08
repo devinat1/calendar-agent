@@ -90,9 +90,73 @@ app.get('/events', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching events:', error);
-    res.status(500).json({
-      error: 'Failed to fetch events',
-      message: error instanceof Error ? error.message : 'Unknown error'
+    
+    // Determine error type and provide appropriate response
+    let statusCode = 500;
+    let errorType = 'INTERNAL_ERROR';
+    let userMessage = 'An unexpected error occurred while fetching events.';
+    
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+      
+      // Date validation errors
+      if (errorMessage.includes('date') && errorMessage.includes('future')) {
+        statusCode = 400;
+        errorType = 'VALIDATION_ERROR';
+        userMessage = error.message;
+      }
+      // Date comparison errors
+      else if (errorMessage.includes('end') && errorMessage.includes('after')) {
+        statusCode = 400;
+        errorType = 'VALIDATION_ERROR';
+        userMessage = error.message;
+      }
+      // Missing date field errors
+      else if (errorMessage.includes('both') && errorMessage.includes('date')) {
+        statusCode = 400;
+        errorType = 'VALIDATION_ERROR';
+        userMessage = error.message;
+      }
+      // API key errors
+      else if (errorMessage.includes('api key')) {
+        statusCode = 503;
+        errorType = 'CONFIGURATION_ERROR';
+        userMessage = 'The service is temporarily unavailable due to configuration issues. Please try again later.';
+      }
+      // Rate limiting errors
+      else if (errorMessage.includes('rate limit')) {
+        statusCode = 429;
+        errorType = 'RATE_LIMIT_ERROR';
+        userMessage = error.message;
+      }
+      // Network/connection errors
+      else if (errorMessage.includes('connect') || errorMessage.includes('network')) {
+        statusCode = 503;
+        errorType = 'NETWORK_ERROR';
+        userMessage = 'Unable to connect to the events service. Please check your internet connection and try again.';
+      }
+      // API service errors
+      else if (errorMessage.includes('api') && (errorMessage.includes('experiencing issues') || errorMessage.includes('status 5'))) {
+        statusCode = 503;
+        errorType = 'SERVICE_ERROR';
+        userMessage = 'The events service is temporarily unavailable. Please try again in a few minutes.';
+      }
+      // Permission errors
+      else if (errorMessage.includes('forbidden') || errorMessage.includes('unauthorized')) {
+        statusCode = 503;
+        errorType = 'AUTHORIZATION_ERROR';
+        userMessage = 'The service is temporarily unavailable due to access issues. Please try again later.';
+      }
+      // For any other known error messages, use them directly
+      else if (error.message && error.message.length > 0) {
+        userMessage = error.message;
+      }
+    }
+    
+    res.status(statusCode).json({
+      error: errorType,
+      message: userMessage,
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -162,9 +226,73 @@ app.post('/events', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching events:', error);
-    res.status(500).json({
-      error: 'Failed to fetch events',
-      message: error instanceof Error ? error.message : 'Unknown error'
+    
+    // Determine error type and provide appropriate response
+    let statusCode = 500;
+    let errorType = 'INTERNAL_ERROR';
+    let userMessage = 'An unexpected error occurred while fetching events.';
+    
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+      
+      // Date validation errors
+      if (errorMessage.includes('date') && errorMessage.includes('future')) {
+        statusCode = 400;
+        errorType = 'VALIDATION_ERROR';
+        userMessage = error.message;
+      }
+      // Date comparison errors
+      else if (errorMessage.includes('end') && errorMessage.includes('after')) {
+        statusCode = 400;
+        errorType = 'VALIDATION_ERROR';
+        userMessage = error.message;
+      }
+      // Missing date field errors
+      else if (errorMessage.includes('both') && errorMessage.includes('date')) {
+        statusCode = 400;
+        errorType = 'VALIDATION_ERROR';
+        userMessage = error.message;
+      }
+      // API key errors
+      else if (errorMessage.includes('api key')) {
+        statusCode = 503;
+        errorType = 'CONFIGURATION_ERROR';
+        userMessage = 'The service is temporarily unavailable due to configuration issues. Please try again later.';
+      }
+      // Rate limiting errors
+      else if (errorMessage.includes('rate limit')) {
+        statusCode = 429;
+        errorType = 'RATE_LIMIT_ERROR';
+        userMessage = error.message;
+      }
+      // Network/connection errors
+      else if (errorMessage.includes('connect') || errorMessage.includes('network')) {
+        statusCode = 503;
+        errorType = 'NETWORK_ERROR';
+        userMessage = 'Unable to connect to the events service. Please check your internet connection and try again.';
+      }
+      // API service errors
+      else if (errorMessage.includes('api') && (errorMessage.includes('experiencing issues') || errorMessage.includes('status 5'))) {
+        statusCode = 503;
+        errorType = 'SERVICE_ERROR';
+        userMessage = 'The events service is temporarily unavailable. Please try again in a few minutes.';
+      }
+      // Permission errors
+      else if (errorMessage.includes('forbidden') || errorMessage.includes('unauthorized')) {
+        statusCode = 503;
+        errorType = 'AUTHORIZATION_ERROR';
+        userMessage = 'The service is temporarily unavailable due to access issues. Please try again later.';
+      }
+      // For any other known error messages, use them directly
+      else if (error.message && error.message.length > 0) {
+        userMessage = error.message;
+      }
+    }
+    
+    res.status(statusCode).json({
+      error: errorType,
+      message: userMessage,
+      timestamp: new Date().toISOString()
     });
   }
 });

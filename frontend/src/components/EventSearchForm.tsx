@@ -4,21 +4,6 @@ import { useState } from 'react';
 import { EventSearchRequest, EventSearchResponse, Event } from '@/types/events';
 import { searchEvents } from '@/utils/api';
 
-const EVENT_GENRES = [
-  'music',
-  'sports',
-  'theater',
-  'comedy',
-  'art',
-  'food',
-  'nightlife',
-  'outdoor',
-  'fitness',
-  'technology',
-  'business',
-  'family',
-];
-
 export default function EventSearchForm() {
   const [formData, setFormData] = useState<EventSearchRequest>({
     location: '',
@@ -30,6 +15,10 @@ export default function EventSearchForm() {
   const [searchResults, setSearchResults] = useState<EventSearchResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dateValidationState, setDateValidationState] = useState<{
+    startValid: boolean | null;
+    endValid: boolean | null;
+  }>({ startValid: null, endValid: null });
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -39,6 +28,71 @@ export default function EventSearchForm() {
       ...prev,
       [name]: value,
     }));
+    
+    // Clear error when user starts typing
+    if (error) {
+      setError(null);
+    }
+    
+    // Real-time date validation
+    if (name === 'startDateTime' || name === 'endDateTime') {
+      validateDates(name === 'startDateTime' ? value : formData.startDateTime, 
+                   name === 'endDateTime' ? value : formData.endDateTime);
+    }
+  };
+
+  const validateDates = (startDateTime: string, endDateTime: string) => {
+    // Reset validation state
+    setDateValidationState({ startValid: null, endValid: null });
+    
+    // Only validate if both dates are provided
+    if (!startDateTime || !endDateTime) {
+      return;
+    }
+
+    const now = new Date();
+    const start = new Date(startDateTime);
+    const end = new Date(endDateTime);
+    let isValid = true;
+
+    // Check if start date is in the past
+    if (start <= now) {
+      setError('The start date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
+      setDateValidationState({ startValid: false, endValid: null });
+      isValid = false;
+      return;
+    }
+
+    // Check if end date is in the past
+    if (end <= now) {
+      setError('The end date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
+      setDateValidationState({ startValid: true, endValid: false });
+      isValid = false;
+      return;
+    }
+
+    // Check if end is before start
+    if (end <= start) {
+      setError('The end date and time must be after the start date and time. Please check your date selection.');
+      setDateValidationState({ startValid: true, endValid: false });
+      isValid = false;
+      return;
+    }
+
+    // If we get here, dates are valid
+    if (isValid) {
+      setDateValidationState({ startValid: true, endValid: true });
+      setError(null);
+    }
+  };
+
+  const getInputClassName = (baseClassName: string, isValid: boolean | null) => {
+    if (isValid === null) return baseClassName;
+    if (isValid) {
+      return `${baseClassName} border-green-300 focus:border-green-500 focus:ring-green-500`;
+    } else {
+      return `${baseClassName} border-red-300 focus:border-red-500 focus:ring-red-500`;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,14 +107,55 @@ export default function EventSearchForm() {
       return;
     }
 
-    if (!formData.genre) {
-      setError('Please select an event type');
+    if (!formData.genre.trim()) {
+      setError('Please enter an event type');
       setIsLoading(false);
       return;
     }
 
     if (!formData.startDateTime || !formData.endDateTime) {
       setError('Please select both start and end dates');
+      setIsLoading(false);
+      return;
+    }
+
+    // Validate dates
+    const now = new Date();
+    const start = new Date(formData.startDateTime);
+    const end = new Date(formData.endDateTime);
+
+    if (start <= now) {
+      setError('The start date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (end <= now) {
+      setError('The end date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (end <= start) {
+      setError('The end date and time must be after the start date and time. Please check your date selection.');
+      setIsLoading(false);
+      return;
+    }
+
+    // Check if the date range is reasonable (not more than 1 year)
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+    
+    if (start > oneYearFromNow || end > oneYearFromNow) {
+      setError('Please select dates within the next year for better event availability.');
+      setIsLoading(false);
+      return;
+    }
+
+    // Check if the date range is too long (more than 6 months)
+    const sixMonthsInMs = 6 * 30 * 24 * 60 * 60 * 1000; // Approximate
+    if (end.getTime() - start.getTime() > sixMonthsInMs) {
+      setError('Please select a date range of 6 months or less for better results.');
       setIsLoading(false);
       return;
     }
@@ -219,26 +314,21 @@ END:VCALENDAR`;
             />
           </div>
 
-          {/* Event Type/Genre Select */}
+          {/* Event Type/Genre Input */}
           <div>
             <label htmlFor="genre" className="block text-sm font-medium text-gray-700 mb-2">
               What sort of event would you like to partake in?
             </label>
-            <select
+            <input
+              type="text"
               id="genre"
               name="genre"
               value={formData.genre}
               onChange={handleInputChange}
+              placeholder="e.g., music, sports, theater, comedy, art, food, outdoor, tech conferences"
               className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
               required
-            >
-              <option value="">Select an event type</option>
-              {EVENT_GENRES.map(genre => (
-                <option key={genre} value={genre}>
-                  {genre.charAt(0).toUpperCase() + genre.slice(1)}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Date Range */}
@@ -253,9 +343,16 @@ END:VCALENDAR`;
                 name="startDateTime"
                 value={formData.startDateTime}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                className={getInputClassName("w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors", dateValidationState.startValid)}
                 required
               />
+              {dateValidationState.startValid === true && (
+                <p className="mt-1 text-sm text-green-600 flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </p>
+              )}
             </div>
 
             <div>
@@ -268,11 +365,39 @@ END:VCALENDAR`;
                 name="endDateTime"
                 value={formData.endDateTime}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                className={getInputClassName("w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors", dateValidationState.endValid)}
                 required
               />
+              {dateValidationState.endValid === true && (
+                <p className="mt-1 text-sm text-green-600 flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </p>
+              )}
             </div>
           </div>
+
+          {/* Helpful Tips */}
+          {!formData.startDateTime || !formData.endDateTime ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+              <div className="flex">
+                <svg className="w-5 h-5 text-blue-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h3 className="text-sm font-medium text-blue-800">Date Selection Tips</h3>
+                  <div className="mt-2 text-sm text-blue-700">
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>Select dates in the future for upcoming events</li>
+                      <li>Keep the date range under 6 months for best results</li>
+                      <li>End date must be after the start date</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {/* Error Message */}
           {error && (

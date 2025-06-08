@@ -43,16 +43,32 @@ export class PerplexityService {
         const now = new Date();
         const start = parseISO(startDateTime);
         const end = parseISO(endDateTime);
-        if (!isAfter(start, now) || !isAfter(end, now) || !isAfter(end, start)) {
-          throw new Error('Start and end date/time must be in the future, and end must be after start.');
+        
+        // More specific date validation errors
+        if (!isAfter(start, now)) {
+          throw new Error('The start date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
         }
+        if (!isAfter(end, now)) {
+          throw new Error('The end date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
+        }
+        if (!isAfter(end, start)) {
+          throw new Error('The end date and time must be after the start date and time. Please check your date selection.');
+        }
+        
         intervalString = ` between ${start.toISOString()} and ${end.toISOString()}`;
       } else if (startDateTime || endDateTime) {
-        throw new Error('Both startDateTime and endDateTime must be provided together.');
+        throw new Error('Both start and end date/time must be provided together. Please fill in both date fields or leave both empty.');
       }
+      
+      // Validate API key
+      if (!this.apiKey || this.apiKey === 'your-api-key-here') {
+        throw new Error('Perplexity API key is not configured. Please contact the administrator to set up the API key.');
+      }
+      
       const genreString = genre ? ` of genre "${genre}"` : '';
       const prompt = `Give events${genreString} happening in ${location}${intervalString ? intervalString : ' this week'}. Only include events that are scheduled in the future. Format the response as a valid ICAL (.ics) calendar file with proper VEVENT entries. Include event titles, descriptions, start/end times, and locations. Use proper ICAL formatting with BEGIN:VCALENDAR, VERSION:2.0, PRODID, and END:VCALENDAR structure.`;
       console.log(`Making API call to Perplexity with prompt: "${prompt}"`);
+      
       const response = await axios.post<PerplexityResponse>(
         this.baseUrl,
         {
@@ -93,10 +109,31 @@ export class PerplexityService {
       return eventsContent;
     } catch (error) {
       console.error('Error calling Perplexity API:', error);
+      
+      // Handle specific axios errors
       if (axios.isAxiosError(error)) {
-        throw new Error(`API Error: ${error.response?.status} - ${error.response?.statusText}`);
+        if (error.response?.status === 401) {
+          throw new Error('Invalid or expired API key. Please contact the administrator to update the Perplexity API key.');
+        } else if (error.response?.status === 403) {
+          throw new Error('Access forbidden. The API key may not have the required permissions.');
+        } else if (error.response?.status === 429) {
+          throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+        } else if (error.response?.status === 500) {
+          throw new Error('The Perplexity API is experiencing issues. Please try again later.');
+        } else if (error.response && error.response.status >= 400) {
+          throw new Error(`API request failed with status ${error.response.status}. Please check your request and try again.`);
+        } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+          throw new Error('Unable to connect to the Perplexity API. Please check your internet connection.');
+        }
+        throw new Error(`API Error: ${error.response?.status || 'Unknown'} - ${error.response?.statusText || 'Unknown error'}`);
       }
-      throw new Error('Failed to fetch events from Perplexity API');
+      
+      // If it's already our custom error message, pass it through
+      if (error instanceof Error) {
+        throw error;
+      }
+      
+      throw new Error('An unexpected error occurred while fetching events. Please try again.');
     }
   }
 
