@@ -412,7 +412,7 @@ END:VCALENDAR`;
               <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
                 <TextField
                   fullWidth
-                  label="Start Date & Time"
+                  label="Start Date & Time Range"
                   name="startDateTime"
                   type="datetime-local"
                   value={formData.startDateTime}
@@ -429,7 +429,7 @@ END:VCALENDAR`;
                 />
                 <TextField
                   fullWidth
-                  label="End Date & Time"
+                  label="End Date & Time Range"
                   name="endDateTime"
                   type="datetime-local"
                   value={formData.endDateTime}
