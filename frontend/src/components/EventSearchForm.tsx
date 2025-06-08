@@ -199,10 +199,18 @@ export default function EventSearchForm() {
               Events in {searchResults.location}
             </h2>
             
-            {searchResults.events.length === 0 ? (
+            {!Array.isArray(searchResults.events) || searchResults.events.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <p className="text-lg">No events found for your search criteria.</p>
                 <p className="text-sm mt-2">Try adjusting your location, event type, or date range.</p>
+                {!Array.isArray(searchResults.events) && (
+                  <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800">
+                    <p className="text-sm">
+                      <strong>Debug info:</strong> Events data is not in expected format. 
+                      {typeof searchResults.events === 'string' ? 'Received string instead of array.' : `Received ${typeof searchResults.events}.`}
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="grid gap-6">

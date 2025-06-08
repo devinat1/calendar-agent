@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import { PerplexityService } from './services/perplexity.service';
+import { ICalParserService } from './services/ical-parser.service';
 
 dotenv.config();
 
@@ -12,8 +13,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Initialize Perplexity service
+// Initialize services
 const perplexityService = new PerplexityService();
+const icalParser = new ICalParserService();
 
 // Routes
 app.get('/health', (req, res) => {
@@ -33,11 +35,49 @@ app.get('/events', async (req, res) => {
       endDateTime: endDateTime || 'not specified'
     });
     
-    const events = await perplexityService.getEventsForLocation(location, {
+    const icalContent = await perplexityService.getEventsForLocation(location, {
       genre,
       startDateTime,
       endDateTime
     });
+    
+    // Parse ICAL content to extract events array
+    let events = [];
+    try {
+      if (icalParser.isValidICalContent(icalContent)) {
+        const parsedCalendar = await icalParser.parseICalContent(icalContent);
+        events = parsedCalendar.events.map(event => ({
+          name: event.summary,
+          date: event.start.toISOString(),
+          time: event.start.toLocaleTimeString(),
+          location: event.location,
+          description: event.description,
+          url: event.url,
+          venue: event.location
+        }));
+      } else {
+        // If not valid ICAL, return the content as a single event description
+        events = [{
+          name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
+          date: startDateTime || new Date().toISOString(),
+          time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
+          location,
+          description: icalContent,
+          venue: location
+        }];
+      }
+    } catch (parseError) {
+      console.warn('Failed to parse ICAL content:', parseError);
+      // Fallback to a single event with the raw content
+      events = [{
+        name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
+        date: startDateTime || new Date().toISOString(),
+        time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
+        location,
+        description: icalContent,
+        venue: location
+      }];
+    }
     
     res.json({
       location,
@@ -66,11 +106,49 @@ app.post('/events', async (req, res) => {
       endDateTime: endDateTime || 'not specified'
     });
     
-    const events = await perplexityService.getEventsForLocation(location, {
+    const icalContent = await perplexityService.getEventsForLocation(location, {
       genre,
       startDateTime,
       endDateTime
     });
+    
+    // Parse ICAL content to extract events array
+    let events = [];
+    try {
+      if (icalParser.isValidICalContent(icalContent)) {
+        const parsedCalendar = await icalParser.parseICalContent(icalContent);
+        events = parsedCalendar.events.map(event => ({
+          name: event.summary,
+          date: event.start.toISOString(),
+          time: event.start.toLocaleTimeString(),
+          location: event.location,
+          description: event.description,
+          url: event.url,
+          venue: event.location
+        }));
+      } else {
+        // If not valid ICAL, return the content as a single event description
+        events = [{
+          name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
+          date: startDateTime || new Date().toISOString(),
+          time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
+          location,
+          description: icalContent,
+          venue: location
+        }];
+      }
+    } catch (parseError) {
+      console.warn('Failed to parse ICAL content:', parseError);
+      // Fallback to a single event with the raw content
+      events = [{
+        name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
+        date: startDateTime || new Date().toISOString(),
+        time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
+        location,
+        description: icalContent,
+        venue: location
+      }];
+    }
     
     res.json({
       location,
