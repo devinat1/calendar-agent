@@ -372,7 +372,7 @@ END:VCALENDAR`;
       <Card elevation={3} sx={{ mb: 4 }}>
         <CardContent sx={{ p: 4 }}>
           <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ mb: 4 }}>
-            Find Amazing Events Near You
+            Find Amazing Events
           </Typography>
 
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>

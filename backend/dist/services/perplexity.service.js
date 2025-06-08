@@ -181,6 +181,14 @@ END:VCALENDAR`;
     // TODO Eventually remove this (replace with a database + ICAL integration)
     async saveToFile(location, content, genre, startDateTime, endDateTime, parsedCalendar) {
         try {
+            // Only save files when running on localhost (not on Vercel production)
+            const isLocalhost = process.env.NODE_ENV !== 'production' ||
+                process.env.VERCEL !== '1' ||
+                process.env.PORT === '3000';
+            if (!isLocalhost) {
+                console.log('Skipping file save - running on production/Vercel');
+                return;
+            }
             // Create responses/ical directory if it doesn't exist
             const icalDir = path.join(process.cwd(), 'responses', 'ical');
             if (!fs.existsSync(icalDir)) {
