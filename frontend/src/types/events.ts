@@ -22,6 +22,7 @@ export interface EventSearchResponse {
   startDateTime: string | null;
   endDateTime: string | null;
   events: Event[];
+  icalContent: string;
   timestamp: string;
 }
 

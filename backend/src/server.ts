@@ -85,6 +85,7 @@ app.get('/events', async (req, res) => {
       startDateTime: startDateTime || null,
       endDateTime: endDateTime || null,
       events,
+      icalContent: icalContent,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -156,6 +157,7 @@ app.post('/events', async (req, res) => {
       startDateTime: startDateTime || null,
       endDateTime: endDateTime || null,
       events,
+      icalContent: icalContent,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

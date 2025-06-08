@@ -88,6 +88,112 @@ export default function EventSearchForm() {
     }
   };
 
+  const downloadICAL = () => {
+    if (!searchResults?.icalContent) {
+      setError('No calendar data available for download');
+      return;
+    }
+
+    try {
+      // Create blob with ICAL content
+      const blob = new Blob([searchResults.icalContent], { 
+        type: 'text/calendar;charset=utf-8' 
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Generate filename
+      const location = searchResults.location.toLowerCase().replace(/\s+/g, '-');
+      const genre = searchResults.genre ? `-${searchResults.genre.toLowerCase()}` : '';
+      const date = new Date().toISOString().split('T')[0];
+      link.download = `events-${location}${genre}-${date}.ics`;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading ICAL file:', error);
+      setError('Failed to download calendar file');
+    }
+  };
+
+  const downloadIndividualEvent = (event: Event, index: number) => {
+    try {
+      // Generate ICAL content for individual event
+      const eventDate = new Date(event.date);
+      const dtStart = eventDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z');
+      
+      // Calculate end time (default to 1 hour later if no specific end time)
+      const endDate = new Date(eventDate.getTime() + 60 * 60 * 1000); // 1 hour later
+      const dtEnd = endDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z');
+      
+      const uid = `event-${Date.now()}-${index}@events-app`;
+      const dtstamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z');
+      
+      // Escape ICAL text (replace newlines and special characters)
+      const escapeICalText = (text: string) => {
+        return text
+          .replace(/\\/g, '\\\\')
+          .replace(/;/g, '\\;')
+          .replace(/,/g, '\\,')
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '');
+      };
+
+      const icalContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Events App//Individual Event//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:${uid}
+DTSTAMP:${dtstamp}
+DTSTART:${dtStart}
+DTEND:${dtEnd}
+SUMMARY:${escapeICalText(event.name)}
+DESCRIPTION:${escapeICalText(event.description || 'Event details')}
+LOCATION:${escapeICalText(event.location || event.venue || '')}${event.url ? `
+URL:${event.url}` : ''}
+END:VEVENT
+END:VCALENDAR`;
+
+      // Create blob and download
+      const blob = new Blob([icalContent], { 
+        type: 'text/calendar;charset=utf-8' 
+      });
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Generate filename for individual event
+      const eventName = event.name.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+        .replace(/\s+/g, '-') // Replace spaces with hyphens
+        .substring(0, 50); // Limit length
+      const eventDateStr = eventDate.toISOString().split('T')[0];
+      link.download = `${eventName}-${eventDateStr}.ics`;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading individual event:', error);
+      setError('Failed to download event file');
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-lg shadow-lg p-8">
@@ -195,9 +301,24 @@ export default function EventSearchForm() {
         {/* Search Results */}
         {searchResults && (
           <div className="mt-12">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">
-              Events in {searchResults.location}
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">
+                Events in {searchResults.location}
+              </h2>
+              
+              {/* Download All Button */}
+              {Array.isArray(searchResults.events) && searchResults.events.length > 0 && (
+                <button
+                  onClick={downloadICAL}
+                  className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md transition-colors focus:ring-2 focus:ring-green-500 focus:ring-offset-2 outline-none"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download All (.ics)
+                </button>
+              )}
+            </div>
             
             {!Array.isArray(searchResults.events) || searchResults.events.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -216,9 +337,23 @@ export default function EventSearchForm() {
               <div className="grid gap-6">
                 {searchResults.events.map((event: Event, index: number) => (
                   <div key={index} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                    <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                      {event.name}
-                    </h3>
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="text-xl font-semibold text-gray-800 flex-1">
+                        {event.name}
+                      </h3>
+                      
+                      {/* Individual Event Download Button */}
+                      <button
+                        onClick={() => downloadIndividualEvent(event, index)}
+                        className="ml-4 inline-flex items-center px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm font-medium rounded-md transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 outline-none"
+                        title="Download this event"
+                      >
+                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download
+                      </button>
+                    </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                       {event.date && (
