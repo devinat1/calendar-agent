@@ -190,8 +190,61 @@ export default function EventSearchForm() {
     }
 
     try {
+      let icalContent = searchResults.icalContent;
+      
+      // Validate iCal content and create fallback if needed
+      if (!icalContent.includes('BEGIN:VCALENDAR') || !icalContent.includes('END:VCALENDAR')) {
+        console.warn('Invalid iCal content detected, creating fallback from events data');
+        
+        // Generate proper iCal content from the events array as fallback
+        if (searchResults.events && Array.isArray(searchResults.events) && searchResults.events.length > 0) {
+          const escapeICalText = (text: string) => {
+            return text
+              .replace(/\\/g, '\\\\')
+              .replace(/;/g, '\\;')
+              .replace(/,/g, '\\,')
+              .replace(/\n/g, '\\n')
+              .replace(/\r/g, '');
+          };
+
+          icalContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Events App//Event Calendar//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Events for ${searchResults.location}${searchResults.genre ? ` - ${searchResults.genre}` : ''}`;
+
+          searchResults.events.forEach((event, index) => {
+            const eventDate = new Date(event.date);
+            const dtStart = eventDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z');
+            const endDate = new Date(eventDate.getTime() + 60 * 60 * 1000); // 1 hour later
+            const dtEnd = endDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z');
+            const uid = `event-${Date.now()}-${index}@events-app`;
+            const dtstamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z');
+
+            icalContent += `
+BEGIN:VEVENT
+UID:${uid}
+DTSTAMP:${dtstamp}
+DTSTART:${dtStart}
+DTEND:${dtEnd}
+SUMMARY:${escapeICalText(event.name)}
+DESCRIPTION:${escapeICalText(event.description || 'Event details')}
+LOCATION:${escapeICalText(event.location || event.venue || '')}${event.url ? `
+URL:${event.url}` : ''}
+END:VEVENT`;
+          });
+
+          icalContent += `
+END:VCALENDAR`;
+        } else {
+          setError('No valid events data available for download');
+          return;
+        }
+      }
+
       // Create blob with ICAL content
-      const blob = new Blob([searchResults.icalContent], { 
+      const blob = new Blob([icalContent], { 
         type: 'text/calendar;charset=utf-8' 
       });
       

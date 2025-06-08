@@ -93,6 +93,8 @@ export class PerplexityService {
       
       // Parse and validate ICAL content
       let parsedCalendar: ParsedCalendar | null = null;
+      let icalContentToReturn = eventsContent;
+      
       try {
         if (this.icalParser.isValidICalContent(eventsContent)) {
           parsedCalendar = await this.icalParser.parseICalContent(eventsContent);
@@ -104,9 +106,35 @@ export class PerplexityService {
         console.log('Failed to parse ICAL content, using fallback structure:', error);
       }
       
+      // Generate proper ICAL content for return if needed
+      if (parsedCalendar && parsedCalendar.events.length > 0) {
+        console.log(`Using parsed calendar with ${parsedCalendar.events.length} events`);
+        icalContentToReturn = this.icalParser.convertToICalString(parsedCalendar);
+      } else if (!eventsContent.includes('BEGIN:VCALENDAR')) {
+        // If Perplexity didn't return proper ICAL format, create a basic one with the content as description
+        console.log('Creating fallback ICAL structure for return');
+        icalContentToReturn = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Events API//Events Calendar//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:Events for ${location}${genre ? ` (${genre})` : ''}
+X-WR-TIMEZONE:UTC
+BEGIN:VEVENT
+UID:events-${Date.now()}@events-api
+DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z')}
+DTSTART:${startDateTime ? parseISO(startDateTime).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z') : new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z')}
+DTEND:${endDateTime ? parseISO(endDateTime).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z') : new Date(Date.now() + 86400000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z')}
+SUMMARY:Events in ${location}${genre ? ` - ${genre}` : ''}
+DESCRIPTION:${eventsContent.replace(/\n/g, '\\n')}
+LOCATION:${location}
+END:VEVENT
+END:VCALENDAR`;
+      }
+      
       // Save to file
       await this.saveToFile(location, eventsContent, genre, startDateTime, endDateTime, parsedCalendar);
-      return eventsContent;
+      return icalContentToReturn;
     } catch (error) {
       console.error('Error calling Perplexity API:', error);
       
