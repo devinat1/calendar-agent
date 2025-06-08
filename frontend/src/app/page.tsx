@@ -1,9 +1,18 @@
+import { Container, Box } from '@mui/material';
 import EventSearchForm from '@/components/EventSearchForm';
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
-      <EventSearchForm />
-    </main>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #FEF7FF 0%, #F3E5F5 100%)',
+        py: 4,
+      }}
+    >
+      <Container maxWidth="lg">
+        <EventSearchForm />
+      </Container>
+    </Box>
   );
 }

@@ -1,6 +1,41 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Box,
+  Alert,
+  AlertTitle,
+  CircularProgress,
+  Chip,
+  Divider,
+  IconButton,
+  Stack,
+  Tooltip,
+  Paper,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Fab,
+} from '@mui/material';
+import {
+  Search as SearchIcon,
+  Download as DownloadIcon,
+  Event as EventIcon,
+  LocationOn as LocationIcon,
+  Schedule as ScheduleIcon,
+  AttachMoney as PriceIcon,
+  Description as DescriptionIcon,
+  Launch as LaunchIcon,
+  CheckCircle as CheckIcon,
+  Info as InfoIcon,
+  GetApp as GetAppIcon,
+} from '@mui/icons-material';
 import { EventSearchRequest, EventSearchResponse, Event } from '@/types/events';
 import { searchEvents } from '@/utils/api';
 
@@ -21,7 +56,7 @@ export default function EventSearchForm() {
   }>({ startValid: null, endValid: null });
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -83,15 +118,6 @@ export default function EventSearchForm() {
     if (isValid) {
       setDateValidationState({ startValid: true, endValid: true });
       setError(null);
-    }
-  };
-
-  const getInputClassName = (baseClassName: string, isValid: boolean | null) => {
-    if (isValid === null) return baseClassName;
-    if (isValid) {
-      return `${baseClassName} border-green-300 focus:border-green-500 focus:ring-green-500`;
-    } else {
-      return `${baseClassName} border-red-300 focus:border-red-500 focus:ring-red-500`;
     }
   };
 
@@ -343,253 +369,269 @@ END:VCALENDAR`;
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8 text-center">
-          Find Amazing Events Near You
-        </h1>
+    <Box sx={{ maxWidth: '1200px', mx: 'auto', p: 3 }}>
+      <Card elevation={3} sx={{ mb: 4 }}>
+        <CardContent sx={{ p: 4 }}>
+          <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ mb: 4 }}>
+            Find Amazing Events Near You
+          </Typography>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Location Input */}
-          <div>
-            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-              Where are you located?
-            </label>
-            <input
-              type="text"
-              id="location"
-              name="location"
-              value={formData.location}
-              onChange={handleInputChange}
-              placeholder="e.g., New York, San Francisco, London"
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
-              required
-            />
-          </div>
+          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+            <Stack spacing={3}>
+              {/* Location and Event Type Row */}
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
+                <TextField
+                  fullWidth
+                  label="Location"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleInputChange}
+                  placeholder="e.g., New York, San Francisco, London"
+                  required
+                  InputProps={{
+                    startAdornment: <LocationIcon sx={{ mr: 1, color: 'action.active' }} />,
+                  }}
+                  helperText="Where are you located?"
+                />
+                <TextField
+                  fullWidth
+                  label="Event Type"
+                  name="genre"
+                  value={formData.genre}
+                  onChange={handleInputChange}
+                  placeholder="e.g., music, sports, theater, comedy, art, food"
+                  required
+                  InputProps={{
+                    startAdornment: <EventIcon sx={{ mr: 1, color: 'action.active' }} />,
+                  }}
+                  helperText="What sort of event would you like to partake in?"
+                />
+              </Box>
 
-          {/* Event Type/Genre Input */}
-          <div>
-            <label htmlFor="genre" className="block text-sm font-medium text-gray-700 mb-2">
-              What sort of event would you like to partake in?
-            </label>
-            <input
-              type="text"
-              id="genre"
-              name="genre"
-              value={formData.genre}
-              onChange={handleInputChange}
-              placeholder="e.g., music, sports, theater, comedy, art, food, outdoor, tech conferences"
-              className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
-              required
-            />
-          </div>
+              {/* Date Range Row */}
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
+                <TextField
+                  fullWidth
+                  label="Start Date & Time"
+                  name="startDateTime"
+                  type="datetime-local"
+                  value={formData.startDateTime}
+                  onChange={handleInputChange}
+                  required
+                  InputLabelProps={{ shrink: true }}
+                  color={dateValidationState.startValid === false ? 'error' : 
+                         dateValidationState.startValid === true ? 'success' : 'primary'}
+                  InputProps={{
+                    endAdornment: dateValidationState.startValid === true && (
+                      <CheckIcon sx={{ color: 'success.main' }} />
+                    ),
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="End Date & Time"
+                  name="endDateTime"
+                  type="datetime-local"
+                  value={formData.endDateTime}
+                  onChange={handleInputChange}
+                  required
+                  InputLabelProps={{ shrink: true }}
+                  color={dateValidationState.endValid === false ? 'error' : 
+                         dateValidationState.endValid === true ? 'success' : 'primary'}
+                  InputProps={{
+                    endAdornment: dateValidationState.endValid === true && (
+                      <CheckIcon sx={{ color: 'success.main' }} />
+                    ),
+                  }}
+                />
+              </Box>
 
-          {/* Date Range */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="startDateTime" className="block text-sm font-medium text-gray-700 mb-2">
-                Start Date & Time
-              </label>
-              <input
-                type="datetime-local"
-                id="startDateTime"
-                name="startDateTime"
-                value={formData.startDateTime}
-                onChange={handleInputChange}
-                className={getInputClassName("w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors", dateValidationState.startValid)}
-                required
-              />
-              {dateValidationState.startValid === true && (
-                <p className="mt-1 text-sm text-green-600 flex items-center">
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </p>
+              {/* Helpful Tips */}
+              {!formData.startDateTime || !formData.endDateTime ? (
+                <Alert severity="info" icon={<InfoIcon />}>
+                  <AlertTitle>Date Selection Tips</AlertTitle>
+                  <List dense>
+                    <ListItem disablePadding>
+                      <ListItemText primary="• Select dates in the future for upcoming events" />
+                    </ListItem>
+                    <ListItem disablePadding>
+                      <ListItemText primary="• Keep the date range under 6 months for best results" />
+                    </ListItem>
+                    <ListItem disablePadding>
+                      <ListItemText primary="• End date must be after the start date" />
+                    </ListItem>
+                  </List>
+                </Alert>
+              ) : null}
+
+              {/* Error Message */}
+              {error && (
+                <Alert severity="error">{error}</Alert>
               )}
-            </div>
 
-            <div>
-              <label htmlFor="endDateTime" className="block text-sm font-medium text-gray-700 mb-2">
-                End Date & Time
-              </label>
-              <input
-                type="datetime-local"
-                id="endDateTime"
-                name="endDateTime"
-                value={formData.endDateTime}
-                onChange={handleInputChange}
-                className={getInputClassName("w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors", dateValidationState.endValid)}
-                required
-              />
-              {dateValidationState.endValid === true && (
-                <p className="mt-1 text-sm text-green-600 flex items-center">
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </p>
-              )}
-            </div>
-          </div>
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                fullWidth
+                disabled={isLoading}
+                startIcon={isLoading ? <CircularProgress size={20} /> : <SearchIcon />}
+                sx={{ py: 1.5 }}
+              >
+                {isLoading ? 'Searching...' : 'Find Events'}
+              </Button>
+            </Stack>
+          </Box>
+        </CardContent>
+      </Card>
 
-          {/* Helpful Tips */}
-          {!formData.startDateTime || !formData.endDateTime ? (
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-              <div className="flex">
-                <svg className="w-5 h-5 text-blue-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <h3 className="text-sm font-medium text-blue-800">Date Selection Tips</h3>
-                  <div className="mt-2 text-sm text-blue-700">
-                    <ul className="list-disc list-inside space-y-1">
-                      <li>Select dates in the future for upcoming events</li>
-                      <li>Keep the date range under 6 months for best results</li>
-                      <li>End date must be after the start date</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-              {error}
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3 px-6 rounded-md transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 outline-none"
-          >
-            {isLoading ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                Searching...
-              </div>
-            ) : (
-              'Find Events'
-            )}
-          </button>
-        </form>
-
-        {/* Search Results */}
-        {searchResults && (
-          <div className="mt-12">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">
+      {/* Search Results */}
+      {searchResults && (
+        <Card elevation={2}>
+          <CardContent sx={{ p: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h5" component="h2">
                 Events in {searchResults.location}
-              </h2>
+              </Typography>
               
               {/* Download All Button */}
               {Array.isArray(searchResults.events) && searchResults.events.length > 0 && (
-                <button
-                  onClick={downloadICAL}
-                  className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md transition-colors focus:ring-2 focus:ring-green-500 focus:ring-offset-2 outline-none"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Download All (.ics)
-                </button>
+                <Tooltip title="Download all events as calendar file">
+                  <Fab
+                    color="secondary"
+                    size="medium"
+                    onClick={downloadICAL}
+                    sx={{ ml: 2 }}
+                  >
+                    <GetAppIcon />
+                  </Fab>
+                </Tooltip>
               )}
-            </div>
+            </Box>
             
             {!Array.isArray(searchResults.events) || searchResults.events.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p className="text-lg">No events found for your search criteria.</p>
-                <p className="text-sm mt-2">Try adjusting your location, event type, or date range.</p>
+              <Paper elevation={1} sx={{ p: 4, textAlign: 'center', bgcolor: 'grey.50' }}>
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  No events found for your search criteria.
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Try adjusting your location, event type, or date range.
+                </Typography>
                 {!Array.isArray(searchResults.events) && (
-                  <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800">
-                    <p className="text-sm">
-                      <strong>Debug info:</strong> Events data is not in expected format. 
-                      {typeof searchResults.events === 'string' ? 'Received string instead of array.' : `Received ${typeof searchResults.events}.`}
-                    </p>
-                  </div>
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    <AlertTitle>Debug Info</AlertTitle>
+                    Events data is not in expected format. 
+                    {typeof searchResults.events === 'string' ? 'Received string instead of array.' : `Received ${typeof searchResults.events}.`}
+                  </Alert>
                 )}
-              </div>
+              </Paper>
             ) : (
-              <div className="grid gap-6">
+              <Stack spacing={3}>
                 {searchResults.events.map((event: Event, index: number) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="text-xl font-semibold text-gray-800 flex-1">
-                        {event.name}
-                      </h3>
+                  <Card key={index} variant="outlined" sx={{ position: 'relative' }}>
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                        <Typography variant="h6" component="h3" sx={{ flex: 1, pr: 2 }}>
+                          {event.name}
+                        </Typography>
+                        
+                        <Tooltip title="Download this event">
+                          <IconButton
+                            size="small"
+                            onClick={() => downloadIndividualEvent(event, index)}
+                            sx={{ color: 'primary.main' }}
+                          >
+                            <DownloadIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                       
-                      {/* Individual Event Download Button */}
-                      <button
-                        onClick={() => downloadIndividualEvent(event, index)}
-                        className="ml-4 inline-flex items-center px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm font-medium rounded-md transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 outline-none"
-                        title="Download this event"
-                      >
-                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Download
-                      </button>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                      {event.date && (
-                        <div>
-                          <span className="font-medium">Date:</span> {formatDate(event.date)}
-                        </div>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+                        {event.date && (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <ScheduleIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 'small' }} />
+                            <Typography variant="body2" color="text.secondary">
+                              <strong>Date:</strong> {formatDate(event.date)}
+                            </Typography>
+                          </Box>
+                        )}
+                        {event.time && (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <ScheduleIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 'small' }} />
+                            <Typography variant="body2" color="text.secondary">
+                              <strong>Time:</strong> {event.time}
+                            </Typography>
+                          </Box>
+                        )}
+                        {event.venue && (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <LocationIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 'small' }} />
+                            <Typography variant="body2" color="text.secondary">
+                              <strong>Venue:</strong> {event.venue}
+                            </Typography>
+                          </Box>
+                        )}
+                        {event.location && (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <LocationIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 'small' }} />
+                            <Typography variant="body2" color="text.secondary">
+                              <strong>Location:</strong> {event.location}
+                            </Typography>
+                          </Box>
+                        )}
+                        {event.price && (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <PriceIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 'small' }} />
+                            <Chip
+                              label={event.price}
+                              size="small"
+                              color="secondary"
+                              variant="outlined"
+                            />
+                          </Box>
+                        )}
+                      </Box>
+                      
+                      {event.description && (
+                        <>
+                          <Divider sx={{ my: 2 }} />
+                          <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                            <DescriptionIcon sx={{ mr: 1, mt: 0.5, color: 'text.secondary', fontSize: 'small' }} />
+                            <Box>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'medium' }}>
+                                Description
+                              </Typography>
+                              <Typography variant="body2" color="text.primary" sx={{ mt: 0.5 }}>
+                                {event.description}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </>
                       )}
-                      {event.time && (
-                        <div>
-                          <span className="font-medium">Time:</span> {event.time}
-                        </div>
+                      
+                      {event.url && (
+                        <Box sx={{ mt: 2 }}>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            href={event.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            endIcon={<LaunchIcon />}
+                          >
+                            View Event Details
+                          </Button>
+                        </Box>
                       )}
-                      {event.venue && (
-                        <div>
-                          <span className="font-medium">Venue:</span> {event.venue}
-                        </div>
-                      )}
-                      {event.location && (
-                        <div>
-                          <span className="font-medium">Location:</span> {event.location}
-                        </div>
-                      )}
-                      {event.price && (
-                        <div>
-                          <span className="font-medium">Price:</span> {event.price}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {event.description && (
-                      <div className="mt-4">
-                        <span className="font-medium text-gray-700">Description:</span>
-                        <p className="text-gray-600 mt-1">{event.description}</p>
-                      </div>
-                    )}
-                    
-                    {event.url && (
-                      <div className="mt-4">
-                        <a
-                          href={event.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          View Event Details
-                          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </a>
-                      </div>
-                    )}
-                  </div>
+                    </CardContent>
+                  </Card>
                 ))}
-              </div>
+              </Stack>
             )}
-          </div>
-        )}
-      </div>
-    </div>
+          </CardContent>
+        </Card>
+      )}
+    </Box>
   );
 } 
