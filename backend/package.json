@@ -13,6 +13,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@vercel/node": "^5.2.1",
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
