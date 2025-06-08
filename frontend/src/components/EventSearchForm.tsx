@@ -20,7 +20,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemIcon,
   Fab,
 } from '@mui/material';
 import {
