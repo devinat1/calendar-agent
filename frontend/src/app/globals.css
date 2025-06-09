@@ -1,24 +1,23 @@
 @import "tailwindcss";
 
-/* Material Design 3 CSS Variables */
+/* Custom color scheme */
 :root {
-  /* Surface colors from Material You */
-  --background: #FEF7FF;
-  --foreground: #1C1B1F;
-  --surface: #FEF7FF;
-  --surface-variant: #E7E0EC;
-  --outline: #79747E;
-  --outline-variant: #CAC4D0;
+  --background: #E3F2FD;
+  --foreground: #212121;
+  --surface: #FFFFFF;
+  --surface-variant: #BBDEFB;
+  --outline: #90CAF9;
+  --outline-variant: #64B5F6;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #141218;
-    --foreground: #E6E0E9;
-    --surface: #141218;
-    --surface-variant: #49454F;
-    --outline: #938F99;
-    --outline-variant: #49454F;
+    --background: #121212;
+    --foreground: #ECEFF1;
+    --surface: #121212;
+    --surface-variant: #37474F;
+    --outline: #B0BEC5;
+    --outline-variant: #90A4AE;
   }
 }
 
