@@ -178,7 +178,6 @@ END:VCALENDAR`;
             throw new Error('An unexpected error occurred while fetching events. Please try again.');
         }
     }
-    // TODO Eventually remove this (replace with a database + ICAL integration)
     async saveToFile(location, content, genre, startDateTime, endDateTime, parsedCalendar) {
         try {
             // Only save files when running on localhost (not on Vercel production)

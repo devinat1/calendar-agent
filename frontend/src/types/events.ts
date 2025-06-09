@@ -14,6 +14,7 @@ export interface Event {
   time?: string;
   price?: string;
   url?: string;
+  rating?: number;
 }
 
 export interface EventSearchResponse {

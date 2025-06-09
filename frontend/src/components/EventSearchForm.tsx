@@ -21,6 +21,7 @@ import {
   ListItem,
   ListItemText,
   Fab,
+  Rating,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -588,6 +589,11 @@ END:VCALENDAR`;
                               color="secondary"
                               variant="outlined"
                             />
+                          </Box>
+                        )}
+                        {typeof event.rating === 'number' && (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Rating value={event.rating} precision={0.1} readOnly size="small" />
                           </Box>
                         )}
                       </Box>
