@@ -17,9 +17,6 @@ import {
   Stack,
   Tooltip,
   Paper,
-  List,
-  ListItem,
-  ListItemText,
   Fab,
 } from '@mui/material';
 import {
@@ -31,7 +28,6 @@ import {
   AttachMoney as PriceIcon,
   Description as DescriptionIcon,
   Launch as LaunchIcon,
-  CheckCircle as CheckIcon,
   Info as InfoIcon,
   GetApp as GetAppIcon,
 } from '@mui/icons-material';
@@ -42,17 +38,11 @@ export default function EventSearchForm() {
   const [formData, setFormData] = useState<EventSearchRequest>({
     location: '',
     genre: '',
-    startDateTime: '',
-    endDateTime: '',
   });
-  
+
   const [searchResults, setSearchResults] = useState<EventSearchResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dateValidationState, setDateValidationState] = useState<{
-    startValid: boolean | null;
-    endValid: boolean | null;
-  }>({ startValid: null, endValid: null });
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -65,57 +55,6 @@ export default function EventSearchForm() {
     
     // Clear error when user starts typing
     if (error) {
-      setError(null);
-    }
-    
-    // Real-time date validation
-    if (name === 'startDateTime' || name === 'endDateTime') {
-      validateDates(name === 'startDateTime' ? value : formData.startDateTime, 
-                   name === 'endDateTime' ? value : formData.endDateTime);
-    }
-  };
-
-  const validateDates = (startDateTime: string, endDateTime: string) => {
-    // Reset validation state
-    setDateValidationState({ startValid: null, endValid: null });
-    
-    // Only validate if both dates are provided
-    if (!startDateTime || !endDateTime) {
-      return;
-    }
-
-    const now = new Date();
-    const start = new Date(startDateTime);
-    const end = new Date(endDateTime);
-    let isValid = true;
-
-    // Check if start date is in the past
-    if (start <= now) {
-      setError('The start date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
-      setDateValidationState({ startValid: false, endValid: null });
-      isValid = false;
-      return;
-    }
-
-    // Check if end date is in the past
-    if (end <= now) {
-      setError('The end date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
-      setDateValidationState({ startValid: true, endValid: false });
-      isValid = false;
-      return;
-    }
-
-    // Check if end is before start
-    if (end <= start) {
-      setError('The end date and time must be after the start date and time. Please check your date selection.');
-      setDateValidationState({ startValid: true, endValid: false });
-      isValid = false;
-      return;
-    }
-
-    // If we get here, dates are valid
-    if (isValid) {
-      setDateValidationState({ startValid: true, endValid: true });
       setError(null);
     }
   };
@@ -138,55 +77,11 @@ export default function EventSearchForm() {
       return;
     }
 
-    if (!formData.startDateTime || !formData.endDateTime) {
-      setError('Please select both start and end dates');
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate dates
-    const now = new Date();
-    const start = new Date(formData.startDateTime);
-    const end = new Date(formData.endDateTime);
-
-    if (start <= now) {
-      setError('The start date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (end <= now) {
-      setError('The end date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (end <= start) {
-      setError('The end date and time must be after the start date and time. Please check your date selection.');
-      setIsLoading(false);
-      return;
-    }
-
-    // Check if the date range is reasonable (not more than 1 year)
-    const oneYearFromNow = new Date();
-    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
-    
-    if (start > oneYearFromNow || end > oneYearFromNow) {
-      setError('Please select dates within the next year for better event availability.');
-      setIsLoading(false);
-      return;
-    }
-
-    // Check if the date range is too long (more than 6 months)
-    const sixMonthsInMs = 6 * 30 * 24 * 60 * 60 * 1000; // Approximate
-    if (end.getTime() - start.getTime() > sixMonthsInMs) {
-      setError('Please select a date range of 6 months or less for better results.');
-      setIsLoading(false);
-      return;
-    }
+    const startDateTime = new Date().toISOString();
+    const endDateTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     try {
-      const results = await searchEvents(formData);
+      const results = await searchEvents({ ...formData, startDateTime, endDateTime });
       setSearchResults(results);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to search events');
@@ -407,61 +302,11 @@ END:VCALENDAR`;
                 />
               </Box>
 
-              {/* Date Range Row */}
-              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
-                <TextField
-                  fullWidth
-                  label="Start Date & Time Range"
-                  name="startDateTime"
-                  type="datetime-local"
-                  value={formData.startDateTime}
-                  onChange={handleInputChange}
-                  required
-                  InputLabelProps={{ shrink: true }}
-                  color={dateValidationState.startValid === false ? 'error' : 
-                         dateValidationState.startValid === true ? 'success' : 'primary'}
-                  InputProps={{
-                    endAdornment: dateValidationState.startValid === true && (
-                      <CheckIcon sx={{ color: 'success.main' }} />
-                    ),
-                  }}
-                />
-                <TextField
-                  fullWidth
-                  label="End Date & Time Range"
-                  name="endDateTime"
-                  type="datetime-local"
-                  value={formData.endDateTime}
-                  onChange={handleInputChange}
-                  required
-                  InputLabelProps={{ shrink: true }}
-                  color={dateValidationState.endValid === false ? 'error' : 
-                         dateValidationState.endValid === true ? 'success' : 'primary'}
-                  InputProps={{
-                    endAdornment: dateValidationState.endValid === true && (
-                      <CheckIcon sx={{ color: 'success.main' }} />
-                    ),
-                  }}
-                />
-              </Box>
-
-              {/* Helpful Tips */}
-              {!formData.startDateTime || !formData.endDateTime ? (
-                <Alert severity="info" icon={<InfoIcon />}>
-                  <AlertTitle>Date Selection Tips</AlertTitle>
-                  <List dense>
-                    <ListItem disablePadding>
-                      <ListItemText primary="• Select dates in the future for upcoming events" />
-                    </ListItem>
-                    <ListItem disablePadding>
-                      <ListItemText primary="• Keep the date range under 6 months for best results" />
-                    </ListItem>
-                    <ListItem disablePadding>
-                      <ListItemText primary="• End date must be after the start date" />
-                    </ListItem>
-                  </List>
-                </Alert>
-              ) : null}
+              {/* Upcoming Week Info */}
+              <Alert severity="info" icon={<InfoIcon />}>
+                <AlertTitle>Date Range</AlertTitle>
+                Searching events for the upcoming week
+              </Alert>
 
               {/* Error Message */}
               {error && (
