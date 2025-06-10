@@ -21,6 +21,7 @@ import {
   ListItem,
   ListItemText,
   Fab,
+  Link,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -532,7 +533,19 @@ END:VCALENDAR`;
                     <CardContent sx={{ p: 3 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                         <Typography variant="h6" component="h3" sx={{ flex: 1, pr: 2 }}>
-                          {event.name}
+                          {event.url ? (
+                            <Link
+                              href={event.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              underline="hover"
+                              color="inherit"
+                            >
+                              {event.name}
+                            </Link>
+                          ) : (
+                            event.name
+                          )}
                         </Typography>
                         
                         <Tooltip title="Download this event">
