@@ -14,6 +14,7 @@ const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3000;
 // Middleware
 app.use((0, cors_1.default)());
+app.options('*', (0, cors_1.default)());
 app.use(express_1.default.json());
 // Initialize services
 const perplexityService = new perplexity_service_1.PerplexityService();

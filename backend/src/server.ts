@@ -12,6 +12,8 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
+// Handle CORS preflight requests
+app.options('*', cors());
 app.use(express.json());
 
 // Initialize services
