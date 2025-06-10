@@ -232,12 +232,14 @@ export default function EventSearchForm() {
               .replace(/\r/g, '');
           };
 
-          icalContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Events App//Event Calendar//EN
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-X-WR-CALNAME:Events for ${searchResults.location}${searchResults.genre ? ` - ${searchResults.genre}` : ''}`;
+          icalContent = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//Events App//Event Calendar//EN',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            `X-WR-CALNAME:Events for ${searchResults.location}${searchResults.genre ? ` - ${searchResults.genre}` : ''}`
+          ].join('\n');
 
           searchResults.events.forEach((event, index) => {
             const eventDate = new Date(event.date);
@@ -247,21 +249,24 @@ X-WR-CALNAME:Events for ${searchResults.location}${searchResults.genre ? ` - ${s
             const uid = `event-${Date.now()}-${index}@events-app`;
             const dtstamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z');
 
-            icalContent += `
-BEGIN:VEVENT
-UID:${uid}
-DTSTAMP:${dtstamp}
-DTSTART:${dtStart}
-DTEND:${dtEnd}
-SUMMARY:${escapeICalText(event.name)}
-DESCRIPTION:${escapeICalText(event.description || 'Event details')}
-LOCATION:${escapeICalText(event.location || event.venue || '')}${event.url ? `
-URL:${event.url}` : ''}
-END:VEVENT`;
+            const eventLines = [
+              'BEGIN:VEVENT',
+              `UID:${uid}`,
+              `DTSTAMP:${dtstamp}`,
+              `DTSTART:${dtStart}`,
+              `DTEND:${dtEnd}`,
+              `SUMMARY:${escapeICalText(event.name)}`,
+              `DESCRIPTION:${escapeICalText(event.description || 'Event details')}`,
+              `LOCATION:${escapeICalText(event.location || event.venue || '')}`,
+            ];
+            if (event.url) {
+              eventLines.push(`URL:${event.url}`);
+            }
+            eventLines.push('END:VEVENT');
+            icalContent += '\n' + eventLines.join('\n');
           });
 
-          icalContent += `
-END:VCALENDAR`;
+          icalContent += '\nEND:VCALENDAR';
         } else {
           setError('No valid events data available for download');
           return;
@@ -320,22 +325,26 @@ END:VCALENDAR`;
           .replace(/\r/g, '');
       };
 
-      const icalContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Events App//Individual Event//EN
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-BEGIN:VEVENT
-UID:${uid}
-DTSTAMP:${dtstamp}
-DTSTART:${dtStart}
-DTEND:${dtEnd}
-SUMMARY:${escapeICalText(event.name)}
-DESCRIPTION:${escapeICalText(event.description || 'Event details')}
-LOCATION:${escapeICalText(event.location || event.venue || '')}${event.url ? `
-URL:${event.url}` : ''}
-END:VEVENT
-END:VCALENDAR`;
+        const eventLines = [
+          'BEGIN:VCALENDAR',
+          'VERSION:2.0',
+          'PRODID:-//Events App//Individual Event//EN',
+          'CALSCALE:GREGORIAN',
+          'METHOD:PUBLISH',
+          'BEGIN:VEVENT',
+          `UID:${uid}`,
+          `DTSTAMP:${dtstamp}`,
+          `DTSTART:${dtStart}`,
+          `DTEND:${dtEnd}`,
+          `SUMMARY:${escapeICalText(event.name)}`,
+          `DESCRIPTION:${escapeICalText(event.description || 'Event details')}`,
+          `LOCATION:${escapeICalText(event.location || event.venue || '')}`,
+        ];
+        if (event.url) {
+          eventLines.push(`URL:${event.url}`);
+        }
+        eventLines.push('END:VEVENT', 'END:VCALENDAR');
+        const icalContent = eventLines.join('\n');
 
       // Create blob and download
       const blob = new Blob([icalContent], { 
