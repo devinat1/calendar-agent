@@ -7,58 +7,58 @@ export const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#6750A4', // Primary color from Material You
-      light: '#9A82DB',
-      dark: '#4F378B',
+      main: '#0D47A1', // Deep Blue
+      light: '#5472D3',
+      dark: '#002171',
       contrastText: '#FFFFFF',
     },
     secondary: {
-      main: '#625B71', // Secondary color
-      light: '#8E8599',
-      dark: '#463F54',
+      main: '#00695C', // Teal
+      light: '#439889',
+      dark: '#003D33',
       contrastText: '#FFFFFF',
     },
     tertiary: {
-      main: '#7E5260',
-      light: '#A87C8A',
-      dark: '#633B48',
+      main: '#AD1457', // Pink accent
+      light: '#F48FB1',
+      dark: '#78002E',
       contrastText: '#FFFFFF',
     },
     error: {
-      main: '#BA1A1A',
-      light: '#FFDAD6',
-      dark: '#93000A',
+      main: '#D32F2F',
+      light: '#FF6659',
+      dark: '#9A0007',
       contrastText: '#FFFFFF',
     },
     warning: {
-      main: '#8C5E00',
-      light: '#FFDF9C',
-      dark: '#6A4700',
+      main: '#FFA000',
+      light: '#FFC046',
+      dark: '#C67100',
       contrastText: '#FFFFFF',
     },
     info: {
-      main: '#006780',
-      light: '#B8E8F5',
-      dark: '#004E62',
+      main: '#0288D1',
+      light: '#5EB8FF',
+      dark: '#005B9F',
       contrastText: '#FFFFFF',
     },
     success: {
-      main: '#006E26',
-      light: '#9BF67C',
-      dark: '#00531C',
+      main: '#2E7D32',
+      light: '#60AD5E',
+      dark: '#005005',
       contrastText: '#FFFFFF',
     },
     background: {
-      default: '#FEF7FF', // Surface color from Material You
+      default: '#E3F2FD', // Light blue background
       paper: '#FFFFFF',
     },
     surface: {
-      main: '#FEF7FF',
-      variant: '#E7E0EC',
+      main: '#E3F2FD',
+      variant: '#BBDEFB',
     },
     outline: {
-      main: '#79747E',
-      variant: '#CAC4D0',
+      main: '#90CAF9',
+      variant: '#64B5F6',
     },
   },
   typography: {
@@ -224,32 +224,32 @@ export const darkTheme = createTheme({
     ...theme.palette,
     mode: 'dark',
     primary: {
-      main: '#D0BCFF',
-      light: '#EADDFF',
-      dark: '#4F378B',
-      contrastText: '#381E72',
+      main: '#90CAF9',
+      light: '#E3F2FD',
+      dark: '#42A5F5',
+      contrastText: '#0D47A1',
     },
     secondary: {
-      main: '#CCC2DC',
-      light: '#E8DEF8',
-      dark: '#4A4458',
-      contrastText: '#332D41',
+      main: '#80CBC4',
+      light: '#B2FEF7',
+      dark: '#4F9A94',
+      contrastText: '#004D40',
     },
     background: {
-      default: '#141218',
-      paper: '#1D1B20',
+      default: '#121212',
+      paper: '#1D1D1D',
     },
     surface: {
-      main: '#141218',
-      variant: '#49454F',
+      main: '#121212',
+      variant: '#37474F',
     },
     outline: {
-      main: '#938F99',
-      variant: '#49454F',
+      main: '#B0BEC5',
+      variant: '#90A4AE',
     },
     text: {
-      primary: '#E6E0E9',
-      secondary: '#CAC4D0',
+      primary: '#ECEFF1',
+      secondary: '#B0BEC5',
     },
   },
 });

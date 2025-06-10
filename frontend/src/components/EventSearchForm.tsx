@@ -17,9 +17,6 @@ import {
   Stack,
   Tooltip,
   Paper,
-  List,
-  ListItem,
-  ListItemText,
   Fab,
   Checkbox,
   FormControlLabel,
@@ -33,7 +30,6 @@ import {
   AttachMoney as PriceIcon,
   Description as DescriptionIcon,
   Launch as LaunchIcon,
-  CheckCircle as CheckIcon,
   Info as InfoIcon,
   GetApp as GetAppIcon,
 } from '@mui/icons-material';
@@ -49,14 +45,10 @@ export default function EventSearchForm() {
     maleFemaleRatio: '',
     onlineOnly: false,
   });
-  
+
   const [searchResults, setSearchResults] = useState<EventSearchResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dateValidationState, setDateValidationState] = useState<{
-    startValid: boolean | null;
-    endValid: boolean | null;
-  }>({ startValid: null, endValid: null });
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -69,57 +61,6 @@ export default function EventSearchForm() {
     
     // Clear error when user starts typing
     if (error) {
-      setError(null);
-    }
-    
-    // Real-time date validation
-    if (name === 'startDateTime' || name === 'endDateTime') {
-      validateDates(name === 'startDateTime' ? value : formData.startDateTime, 
-                   name === 'endDateTime' ? value : formData.endDateTime);
-    }
-  };
-
-  const validateDates = (startDateTime: string, endDateTime: string) => {
-    // Reset validation state
-    setDateValidationState({ startValid: null, endValid: null });
-    
-    // Only validate if both dates are provided
-    if (!startDateTime || !endDateTime) {
-      return;
-    }
-
-    const now = new Date();
-    const start = new Date(startDateTime);
-    const end = new Date(endDateTime);
-    let isValid = true;
-
-    // Check if start date is in the past
-    if (start <= now) {
-      setError('The start date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
-      setDateValidationState({ startValid: false, endValid: null });
-      isValid = false;
-      return;
-    }
-
-    // Check if end date is in the past
-    if (end <= now) {
-      setError('The end date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
-      setDateValidationState({ startValid: true, endValid: false });
-      isValid = false;
-      return;
-    }
-
-    // Check if end is before start
-    if (end <= start) {
-      setError('The end date and time must be after the start date and time. Please check your date selection.');
-      setDateValidationState({ startValid: true, endValid: false });
-      isValid = false;
-      return;
-    }
-
-    // If we get here, dates are valid
-    if (isValid) {
-      setDateValidationState({ startValid: true, endValid: true });
       setError(null);
     }
   };
@@ -142,55 +83,11 @@ export default function EventSearchForm() {
       return;
     }
 
-    if (!formData.startDateTime || !formData.endDateTime) {
-      setError('Please select both start and end dates');
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate dates
-    const now = new Date();
-    const start = new Date(formData.startDateTime);
-    const end = new Date(formData.endDateTime);
-
-    if (start <= now) {
-      setError('The start date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (end <= now) {
-      setError('The end date and time must be in the future. Please select a date and time that hasn\'t passed yet.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (end <= start) {
-      setError('The end date and time must be after the start date and time. Please check your date selection.');
-      setIsLoading(false);
-      return;
-    }
-
-    // Check if the date range is reasonable (not more than 1 year)
-    const oneYearFromNow = new Date();
-    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
-    
-    if (start > oneYearFromNow || end > oneYearFromNow) {
-      setError('Please select dates within the next year for better event availability.');
-      setIsLoading(false);
-      return;
-    }
-
-    // Check if the date range is too long (more than 6 months)
-    const sixMonthsInMs = 6 * 30 * 24 * 60 * 60 * 1000; // Approximate
-    if (end.getTime() - start.getTime() > sixMonthsInMs) {
-      setError('Please select a date range of 6 months or less for better results.');
-      setIsLoading(false);
-      return;
-    }
+    const startDateTime = new Date().toISOString();
+    const endDateTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     try {
-      const results = await searchEvents(formData);
+      const results = await searchEvents({ ...formData, startDateTime, endDateTime });
       setSearchResults(results);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to search events');
@@ -236,12 +133,14 @@ export default function EventSearchForm() {
               .replace(/\r/g, '');
           };
 
-          icalContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Events App//Event Calendar//EN
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-X-WR-CALNAME:Events for ${searchResults.location}${searchResults.genre ? ` - ${searchResults.genre}` : ''}`;
+          icalContent = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//Events App//Event Calendar//EN',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            `X-WR-CALNAME:Events for ${searchResults.location}${searchResults.genre ? ` - ${searchResults.genre}` : ''}`
+          ].join('\n');
 
           searchResults.events.forEach((event, index) => {
             const eventDate = new Date(event.date);
@@ -251,21 +150,24 @@ X-WR-CALNAME:Events for ${searchResults.location}${searchResults.genre ? ` - ${s
             const uid = `event-${Date.now()}-${index}@events-app`;
             const dtstamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z');
 
-            icalContent += `
-BEGIN:VEVENT
-UID:${uid}
-DTSTAMP:${dtstamp}
-DTSTART:${dtStart}
-DTEND:${dtEnd}
-SUMMARY:${escapeICalText(event.name)}
-DESCRIPTION:${escapeICalText(event.description || 'Event details')}
-LOCATION:${escapeICalText(event.location || event.venue || '')}${event.url ? `
-URL:${event.url}` : ''}
-END:VEVENT`;
+            const eventLines = [
+              'BEGIN:VEVENT',
+              `UID:${uid}`,
+              `DTSTAMP:${dtstamp}`,
+              `DTSTART:${dtStart}`,
+              `DTEND:${dtEnd}`,
+              `SUMMARY:${escapeICalText(event.name)}`,
+              `DESCRIPTION:${escapeICalText(event.description || 'Event details')}`,
+              `LOCATION:${escapeICalText(event.location || event.venue || '')}`,
+            ];
+            if (event.url) {
+              eventLines.push(`URL:${event.url}`);
+            }
+            eventLines.push('END:VEVENT');
+            icalContent += '\n' + eventLines.join('\n');
           });
 
-          icalContent += `
-END:VCALENDAR`;
+          icalContent += '\nEND:VCALENDAR';
         } else {
           setError('No valid events data available for download');
           return;
@@ -324,22 +226,26 @@ END:VCALENDAR`;
           .replace(/\r/g, '');
       };
 
-      const icalContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Events App//Individual Event//EN
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-BEGIN:VEVENT
-UID:${uid}
-DTSTAMP:${dtstamp}
-DTSTART:${dtStart}
-DTEND:${dtEnd}
-SUMMARY:${escapeICalText(event.name)}
-DESCRIPTION:${escapeICalText(event.description || 'Event details')}
-LOCATION:${escapeICalText(event.location || event.venue || '')}${event.url ? `
-URL:${event.url}` : ''}
-END:VEVENT
-END:VCALENDAR`;
+        const eventLines = [
+          'BEGIN:VCALENDAR',
+          'VERSION:2.0',
+          'PRODID:-//Events App//Individual Event//EN',
+          'CALSCALE:GREGORIAN',
+          'METHOD:PUBLISH',
+          'BEGIN:VEVENT',
+          `UID:${uid}`,
+          `DTSTAMP:${dtstamp}`,
+          `DTSTART:${dtStart}`,
+          `DTEND:${dtEnd}`,
+          `SUMMARY:${escapeICalText(event.name)}`,
+          `DESCRIPTION:${escapeICalText(event.description || 'Event details')}`,
+          `LOCATION:${escapeICalText(event.location || event.venue || '')}`,
+        ];
+        if (event.url) {
+          eventLines.push(`URL:${event.url}`);
+        }
+        eventLines.push('END:VEVENT', 'END:VCALENDAR');
+        const icalContent = eventLines.join('\n');
 
       // Create blob and download
       const blob = new Blob([icalContent], { 
@@ -561,7 +467,19 @@ END:VCALENDAR`;
                     <CardContent sx={{ p: 3 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                         <Typography variant="h6" component="h3" sx={{ flex: 1, pr: 2 }}>
-                          {event.name}
+                          {event.url ? (
+                            <Link
+                              href={event.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              underline="hover"
+                              color="inherit"
+                            >
+                              {event.name}
+                            </Link>
+                          ) : (
+                            event.name
+                          )}
                         </Typography>
                         
                         <Tooltip title="Download this event">
@@ -617,6 +535,11 @@ END:VCALENDAR`;
                               color="secondary"
                               variant="outlined"
                             />
+                          </Box>
+                        )}
+                        {typeof event.rating === 'number' && (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Rating value={event.rating} precision={0.1} readOnly size="small" />
                           </Box>
                         )}
                       </Box>

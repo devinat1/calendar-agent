@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { PerplexityService } from './services/perplexity.service';
 import { ICalParserService } from './services/ical-parser.service';
+import { RatingService } from './services/rating.service';
 
 dotenv.config();
 
@@ -16,6 +17,7 @@ app.use(express.json());
 // Initialize services
 const perplexityService = new PerplexityService();
 const icalParser = new ICalParserService();
+const ratingService = new RatingService();
 
 // Routes
 app.get('/health', (req, res) => {
@@ -221,6 +223,8 @@ app.post('/events', async (req, res) => {
         events = parsedCalendar.events.map(event => {
           const ratio = icalParser.extractGenderRatio(event.description);
           return {
+        events = await Promise.all(
+          parsedCalendar.events.map(async event => ({
             name: event.summary,
             date: event.start.toISOString(),
             time: event.start.toLocaleTimeString(),
