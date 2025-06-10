@@ -293,8 +293,7 @@ export default function EventSearchForm() {
   };
 
   const setTodayRange = () => {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+    const start = new Date(Date.now() + 60 * 60 * 1000); // one hour from now
     const end = new Date();
     end.setHours(23, 59, 0, 0);
     const format = (d: Date) => d.toISOString().slice(0, 16);
