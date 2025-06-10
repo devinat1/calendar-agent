@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const perplexity_service_1 = require("./services/perplexity.service");
 const ical_parser_service_1 = require("./services/ical-parser.service");
+const rating_service_1 = require("./services/rating.service");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +18,7 @@ app.use(express_1.default.json());
 // Initialize services
 const perplexityService = new perplexity_service_1.PerplexityService();
 const icalParser = new ical_parser_service_1.ICalParserService();
+const ratingService = new rating_service_1.RatingService();
 // Routes
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
@@ -42,26 +44,34 @@ app.get('/events', async (req, res) => {
         try {
             if (icalParser.isValidICalContent(icalContent)) {
                 const parsedCalendar = await icalParser.parseICalContent(icalContent);
-                events = parsedCalendar.events.map(event => ({
+                events = await Promise.all(parsedCalendar.events.map(async (event) => ({
                     name: event.summary,
                     date: event.start.toISOString(),
                     time: event.start.toLocaleTimeString(),
                     location: event.location,
                     description: event.description,
                     url: event.url,
-                    venue: event.location
-                }));
+                    venue: event.location,
+                    rating: event.location
+                        ? await ratingService.getRatingForPlace(event.location)
+                        : null
+                })));
             }
             else {
                 // If not valid ICAL, return the content as a single event description
-                events = [{
+                events = [
+                    {
                         name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
                         date: startDateTime || new Date().toISOString(),
                         time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
                         location,
                         description: icalContent,
-                        venue: location
-                    }];
+                        venue: location,
+                        rating: location
+                            ? await ratingService.getRatingForPlace(location)
+                            : null
+                    }
+                ];
             }
         }
         catch (parseError) {
@@ -73,7 +83,10 @@ app.get('/events', async (req, res) => {
                     time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
                     location,
                     description: icalContent,
-                    venue: location
+                    venue: location,
+                    rating: location
+                        ? await ratingService.getRatingForPlace(location)
+                        : null
                 }];
         }
         res.json({
@@ -172,26 +185,34 @@ app.post('/events', async (req, res) => {
         try {
             if (icalParser.isValidICalContent(icalContent)) {
                 const parsedCalendar = await icalParser.parseICalContent(icalContent);
-                events = parsedCalendar.events.map(event => ({
+                events = await Promise.all(parsedCalendar.events.map(async (event) => ({
                     name: event.summary,
                     date: event.start.toISOString(),
                     time: event.start.toLocaleTimeString(),
                     location: event.location,
                     description: event.description,
                     url: event.url,
-                    venue: event.location
-                }));
+                    venue: event.location,
+                    rating: event.location
+                        ? await ratingService.getRatingForPlace(event.location)
+                        : null
+                })));
             }
             else {
                 // If not valid ICAL, return the content as a single event description
-                events = [{
+                events = [
+                    {
                         name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
                         date: startDateTime || new Date().toISOString(),
                         time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
                         location,
                         description: icalContent,
-                        venue: location
-                    }];
+                        venue: location,
+                        rating: location
+                            ? await ratingService.getRatingForPlace(location)
+                            : null
+                    }
+                ];
             }
         }
         catch (parseError) {
@@ -203,7 +224,10 @@ app.post('/events', async (req, res) => {
                     time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
                     location,
                     description: icalContent,
-                    venue: location
+                    venue: location,
+                    rating: location
+                        ? await ratingService.getRatingForPlace(location)
+                        : null
                 }];
         }
         res.json({

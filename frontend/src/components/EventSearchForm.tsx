@@ -18,6 +18,7 @@ import {
   Tooltip,
   Paper,
   Fab,
+  Rating,
   Link,
 } from '@mui/material';
 import {
@@ -455,6 +456,11 @@ export default function EventSearchForm() {
                               color="secondary"
                               variant="outlined"
                             />
+                          </Box>
+                        )}
+                        {typeof event.rating === 'number' && (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Rating value={event.rating} precision={0.1} readOnly size="small" />
                           </Box>
                         )}
                       </Box>

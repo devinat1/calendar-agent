@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { PerplexityService } from './services/perplexity.service';
 import { ICalParserService } from './services/ical-parser.service';
+import { RatingService } from './services/rating.service';
 
 dotenv.config();
 
@@ -16,6 +17,7 @@ app.use(express.json());
 // Initialize services
 const perplexityService = new PerplexityService();
 const icalParser = new ICalParserService();
+const ratingService = new RatingService();
 
 // Routes
 app.get('/health', (req, res) => {
@@ -46,25 +48,35 @@ app.get('/events', async (req, res) => {
     try {
       if (icalParser.isValidICalContent(icalContent)) {
         const parsedCalendar = await icalParser.parseICalContent(icalContent);
-        events = parsedCalendar.events.map(event => ({
-          name: event.summary,
-          date: event.start.toISOString(),
-          time: event.start.toLocaleTimeString(),
-          location: event.location,
-          description: event.description,
-          url: event.url,
-          venue: event.location
-        }));
+        events = await Promise.all(
+          parsedCalendar.events.map(async event => ({
+            name: event.summary,
+            date: event.start.toISOString(),
+            time: event.start.toLocaleTimeString(),
+            location: event.location,
+            description: event.description,
+            url: event.url,
+            venue: event.location,
+            rating: event.location
+              ? await ratingService.getRatingForPlace(event.location)
+              : null
+          }))
+        );
       } else {
         // If not valid ICAL, return the content as a single event description
-        events = [{
-          name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
-          date: startDateTime || new Date().toISOString(),
-          time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
-          location,
-          description: icalContent,
-          venue: location
-        }];
+        events = [
+          {
+            name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
+            date: startDateTime || new Date().toISOString(),
+            time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
+            location,
+            description: icalContent,
+            venue: location,
+            rating: location
+              ? await ratingService.getRatingForPlace(location)
+              : null
+          }
+        ];
       }
     } catch (parseError) {
       console.warn('Failed to parse ICAL content:', parseError);
@@ -75,7 +87,10 @@ app.get('/events', async (req, res) => {
         time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
         location,
         description: icalContent,
-        venue: location
+        venue: location,
+        rating: location
+          ? await ratingService.getRatingForPlace(location)
+          : null
       }];
     }
     
@@ -182,25 +197,35 @@ app.post('/events', async (req, res) => {
     try {
       if (icalParser.isValidICalContent(icalContent)) {
         const parsedCalendar = await icalParser.parseICalContent(icalContent);
-        events = parsedCalendar.events.map(event => ({
-          name: event.summary,
-          date: event.start.toISOString(),
-          time: event.start.toLocaleTimeString(),
-          location: event.location,
-          description: event.description,
-          url: event.url,
-          venue: event.location
-        }));
+        events = await Promise.all(
+          parsedCalendar.events.map(async event => ({
+            name: event.summary,
+            date: event.start.toISOString(),
+            time: event.start.toLocaleTimeString(),
+            location: event.location,
+            description: event.description,
+            url: event.url,
+            venue: event.location,
+            rating: event.location
+              ? await ratingService.getRatingForPlace(event.location)
+              : null
+          }))
+        );
       } else {
         // If not valid ICAL, return the content as a single event description
-        events = [{
-          name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
-          date: startDateTime || new Date().toISOString(),
-          time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
-          location,
-          description: icalContent,
-          venue: location
-        }];
+        events = [
+          {
+            name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
+            date: startDateTime || new Date().toISOString(),
+            time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
+            location,
+            description: icalContent,
+            venue: location,
+            rating: location
+              ? await ratingService.getRatingForPlace(location)
+              : null
+          }
+        ];
       }
     } catch (parseError) {
       console.warn('Failed to parse ICAL content:', parseError);
@@ -211,7 +236,10 @@ app.post('/events', async (req, res) => {
         time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
         location,
         description: icalContent,
-        venue: location
+        venue: location,
+        rating: location
+          ? await ratingService.getRatingForPlace(location)
+          : null
       }];
     }
     
