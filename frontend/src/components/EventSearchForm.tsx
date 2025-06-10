@@ -35,8 +35,12 @@ import {
   Info as InfoIcon,
   GetApp as GetAppIcon,
 } from '@mui/icons-material';
+import dynamic from 'next/dynamic';
 import { EventSearchRequest, EventSearchResponse, Event } from '@/types/events';
 import { searchEvents } from '@/utils/api';
+import { geocodeAddress } from '@/utils/geocode';
+
+const EventsMap = dynamic(() => import('./EventsMap'), { ssr: false });
 
 export default function EventSearchForm() {
   const [formData, setFormData] = useState<EventSearchRequest>({
@@ -187,7 +191,19 @@ export default function EventSearchForm() {
 
     try {
       const results = await searchEvents(formData);
-      setSearchResults(results);
+      const eventsWithCoords = await Promise.all(
+        results.events.map(async (ev) => {
+          const address = ev.location || ev.venue;
+          if (address) {
+            const geo = await geocodeAddress(address);
+            if (geo) {
+              return { ...ev, latitude: geo.lat, longitude: geo.lon };
+            }
+          }
+          return ev;
+        })
+      );
+      setSearchResults({ ...results, events: eventsWithCoords });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to search events');
     } finally {
@@ -508,6 +524,13 @@ END:VCALENDAR`;
                 </Tooltip>
               )}
             </Box>
+
+            {Array.isArray(searchResults.events) &&
+             searchResults.events.some(ev => ev.latitude && ev.longitude) && (
+              <Box sx={{ height: 400, mb: 3 }}>
+                <EventsMap events={searchResults.events} />
+              </Box>
+            )}
             
             {!Array.isArray(searchResults.events) || searchResults.events.length === 0 ? (
               <Paper elevation={1} sx={{ p: 4, textAlign: 'center', bgcolor: 'grey.50' }}>

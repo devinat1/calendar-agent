@@ -14,6 +14,8 @@ export interface Event {
   time?: string;
   price?: string;
   url?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface EventSearchResponse {
