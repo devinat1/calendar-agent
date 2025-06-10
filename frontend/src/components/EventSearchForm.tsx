@@ -88,8 +88,15 @@ export default function EventSearchForm() {
       return;
     }
 
-    const startDateTime = new Date().toISOString();
-    const endDateTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    if (!formData.startDateTime || !formData.endDateTime) {
+      setError('Please select a valid start and end date');
+      setIsLoading(false);
+      return;
+    }
+
+    // Use the user provided date range when searching
+    const startDateTime = new Date(formData.startDateTime).toISOString();
+    const endDateTime = new Date(formData.endDateTime).toISOString();
 
     try {
       const results = await searchEvents({ ...formData, startDateTime, endDateTime });
