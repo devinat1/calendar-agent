@@ -11,6 +11,8 @@ export interface ParsedEvent {
   location?: string;
   url?: string;
   organizer?: string;
+  malePercentage?: number;
+  femalePercentage?: number;
 }
 
 export interface ParsedCalendar {
@@ -175,6 +177,55 @@ export class ICalParserService {
       const description = event.description?.toLowerCase() || '';
       return summary.includes(lowerGenre) || description.includes(lowerGenre);
     });
+  }
+
+  /**
+   * Extract male/female ratio from event description if present.
+   * Expects patterns like "60% male, 40% female".
+   */
+  extractGenderRatio(description?: string): { malePercentage: number; femalePercentage: number } | null {
+    if (!description) return null;
+    const maleMatch = description.match(/(\d+)%\s*(?:male|men)/i);
+    const femaleMatch = description.match(/(\d+)%\s*(?:female|women)/i);
+    if (maleMatch && femaleMatch) {
+      const male = parseInt(maleMatch[1], 10);
+      const female = parseInt(femaleMatch[1], 10);
+      if (!isNaN(male) && !isNaN(female)) {
+        return { malePercentage: male, femalePercentage: female };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Filter events by desired male/female ratio with optional tolerance.
+   */
+  getEventsByGenderRatio(
+    parsedCalendar: ParsedCalendar,
+    malePercentage: number,
+    femalePercentage: number,
+    tolerance = 10
+  ): ParsedEvent[] {
+    return parsedCalendar.events.filter(event => {
+      const ratio = this.extractGenderRatio(event.description);
+      if (!ratio) return false;
+      return (
+        Math.abs(ratio.malePercentage - malePercentage) <= tolerance &&
+        Math.abs(ratio.femalePercentage - femalePercentage) <= tolerance
+      );
+    });
+  }
+
+  /**
+   * Determine if an event is online/virtual based on description or location.
+   */
+  isOnlineEvent(event: ParsedEvent): boolean {
+    const text = `${event.location || ''} ${event.description || ''}`.toLowerCase();
+    return /online|virtual|zoom|webinar/.test(text);
+  }
+
+  filterOnlineEvents(parsedCalendar: ParsedCalendar): ParsedEvent[] {
+    return parsedCalendar.events.filter(event => this.isOnlineEvent(event));
   }
 
   /**

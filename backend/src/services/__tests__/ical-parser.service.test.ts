@@ -198,6 +198,40 @@ END:VCALENDAR`;
     });
   });
 
+  describe('gender ratio and online filters', () => {
+    const ratioIcal = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Test//Ratio Calendar//EN
+BEGIN:VEVENT
+UID:ratio-event@example.com
+DTSTAMP:20250615T120000Z
+DTSTART:20250615T180000Z
+DTEND:20250615T200000Z
+SUMMARY:Online Party
+DESCRIPTION:Expected attendance 60% male, 40% female
+LOCATION:Online Zoom
+END:VEVENT
+END:VCALENDAR`;
+
+    it('should extract gender ratio from description', async () => {
+      const parsed = await service.parseICalContent(ratioIcal);
+      const ratio = service.extractGenderRatio(parsed.events[0].description);
+      expect(ratio).toEqual({ malePercentage: 60, femalePercentage: 40 });
+    });
+
+    it('should filter events by gender ratio', async () => {
+      const parsed = await service.parseICalContent(ratioIcal);
+      const events = service.getEventsByGenderRatio(parsed, 60, 40);
+      expect(events).toHaveLength(1);
+    });
+
+    it('should detect online events', async () => {
+      const parsed = await service.parseICalContent(ratioIcal);
+      const onlineEvents = service.filterOnlineEvents(parsed);
+      expect(onlineEvents).toHaveLength(1);
+    });
+  });
+
   describe('convertToICalString', () => {
     let parsedCalendar: ParsedCalendar;
 

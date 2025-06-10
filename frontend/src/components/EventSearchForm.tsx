@@ -21,6 +21,8 @@ import {
   ListItem,
   ListItemText,
   Fab,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -44,6 +46,8 @@ export default function EventSearchForm() {
     genre: '',
     startDateTime: '',
     endDateTime: '',
+    maleFemaleRatio: '',
+    onlineOnly: false,
   });
   
   const [searchResults, setSearchResults] = useState<EventSearchResponse | null>(null);
@@ -57,10 +61,10 @@ export default function EventSearchForm() {
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target as HTMLInputElement;
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
     }));
     
     // Clear error when user starts typing
@@ -435,13 +439,38 @@ END:VCALENDAR`;
                   onChange={handleInputChange}
                   required
                   InputLabelProps={{ shrink: true }}
-                  color={dateValidationState.endValid === false ? 'error' : 
+                  color={dateValidationState.endValid === false ? 'error' :
                          dateValidationState.endValid === true ? 'success' : 'primary'}
                   InputProps={{
                     endAdornment: dateValidationState.endValid === true && (
                       <CheckIcon sx={{ color: 'success.main' }} />
                     ),
                   }}
+                />
+              </Box>
+
+              {/* Additional Filters */}
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
+                <TextField
+                  fullWidth
+                  label="Male:Female Ratio"
+                  name="maleFemaleRatio"
+                  value={formData.maleFemaleRatio}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 60:40"
+                  InputProps={{
+                    startAdornment: <PriceIcon sx={{ mr: 1, color: 'action.active' }} />,
+                  }}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      name="onlineOnly"
+                      checked={formData.onlineOnly}
+                      onChange={handleInputChange}
+                    />
+                  }
+                  label="Online events only"
                 />
               </Box>
 
