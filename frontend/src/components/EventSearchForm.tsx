@@ -37,6 +37,9 @@ import {
   Launch as LaunchIcon,
   Info as InfoIcon,
   GetApp as GetAppIcon,
+  Casino as CasinoIcon,
+  Today as TodayIcon,
+  NextWeek as NextWeekIcon,
 } from '@mui/icons-material';
 import { EventSearchRequest, EventSearchResponse, Event } from '@/types/events';
 import { searchEvents } from '@/utils/api';
@@ -289,6 +292,44 @@ export default function EventSearchForm() {
     }
   };
 
+  const setTodayRange = () => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 0, 0);
+    const format = (d: Date) => d.toISOString().slice(0, 16);
+    setFormData(prev => ({
+      ...prev,
+      startDateTime: format(start),
+      endDateTime: format(end),
+    }));
+  };
+
+  const setNextWeekRange = () => {
+    const today = new Date();
+    const day = today.getDay();
+    const daysUntilNextMonday = ((1 - day + 7) % 7) || 7;
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysUntilNextMonday);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 0, 0);
+    const format = (d: Date) => d.toISOString().slice(0, 16);
+    setFormData(prev => ({
+      ...prev,
+      startDateTime: format(start),
+      endDateTime: format(end),
+    }));
+  };
+
+  const handleFeelingLucky = () => {
+    if (searchResults?.events && searchResults.events.length > 0) {
+      const randomIndex = Math.floor(Math.random() * searchResults.events.length);
+      const randomEvent = searchResults.events[randomIndex];
+      setSearchResults(prev => (prev ? { ...prev, events: [randomEvent] } : prev));
+    }
+  };
+
   return (
     <Box sx={{ maxWidth: '1200px', mx: 'auto', p: 3 }}>
       <Card elevation={3} sx={{ mb: 4 }}>
@@ -351,6 +392,16 @@ export default function EventSearchForm() {
                   required
                   InputLabelProps={{ shrink: true }}
                 />
+              </Box>
+
+              {/* Quick Date Buttons */}
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button variant="outlined" onClick={setTodayRange} startIcon={<TodayIcon />}>
+                  Today
+                </Button>
+                <Button variant="outlined" onClick={setNextWeekRange} startIcon={<NextWeekIcon />}>
+                  Next Week
+                </Button>
               </Box>
 
               {/* Additional Filters */}
@@ -427,18 +478,20 @@ export default function EventSearchForm() {
                 Events in {searchResults.location}
               </Typography>
               
-              {/* Download All Button */}
+              {/* Action Buttons */}
               {Array.isArray(searchResults.events) && searchResults.events.length > 0 && (
-                <Tooltip title="Download all events as calendar file">
-                  <Fab
-                    color="secondary"
-                    size="medium"
-                    onClick={downloadICAL}
-                    sx={{ ml: 2 }}
-                  >
-                    <GetAppIcon />
-                  </Fab>
-                </Tooltip>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Tooltip title="I'm Feeling Lucky">
+                    <Fab color="primary" size="medium" onClick={handleFeelingLucky}>
+                      <CasinoIcon />
+                    </Fab>
+                  </Tooltip>
+                  <Tooltip title="Download all events as calendar file">
+                    <Fab color="secondary" size="medium" onClick={downloadICAL}>
+                      <GetAppIcon />
+                    </Fab>
+                  </Tooltip>
+                </Box>
               )}
             </Box>
             
