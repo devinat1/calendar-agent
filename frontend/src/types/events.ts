@@ -19,6 +19,7 @@ export interface Event {
   malePercentage?: number;
   femalePercentage?: number;
   online?: boolean;
+  rating?: number;
 }
 
 export interface EventSearchResponse {

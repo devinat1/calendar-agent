@@ -50,23 +50,27 @@ app.get('/events', async (req, res) => {
     // Parse ICAL content to extract events array
     let events = [] as any[];
     try {
-      if (icalParser.isValidICalContent(icalContent)) {
-        const parsedCalendar = await icalParser.parseICalContent(icalContent);
-        events = parsedCalendar.events.map(event => {
-          const ratio = icalParser.extractGenderRatio(event.description);
-          return {
-            name: event.summary,
-            date: event.start.toISOString(),
-            time: event.start.toLocaleTimeString(),
-            location: event.location,
-            description: event.description,
-            url: event.url,
-            venue: event.location,
-            malePercentage: ratio?.malePercentage,
-            femalePercentage: ratio?.femalePercentage,
-            online: icalParser.isOnlineEvent(event)
-          };
-        });
+        if (icalParser.isValidICalContent(icalContent)) {
+          const parsedCalendar = await icalParser.parseICalContent(icalContent);
+          events = await Promise.all(
+            parsedCalendar.events.map(async event => {
+              const ratio = icalParser.extractGenderRatio(event.description);
+              const rating = await ratingService.getRatingForPlace(event.location || '');
+              return {
+                name: event.summary,
+                date: event.start.toISOString(),
+                time: event.start.toLocaleTimeString(),
+                location: event.location,
+                description: event.description,
+                url: event.url,
+                venue: event.location,
+                malePercentage: ratio?.malePercentage,
+                femalePercentage: ratio?.femalePercentage,
+                online: icalParser.isOnlineEvent(event),
+                rating
+              };
+            })
+          );
       } else {
         // If not valid ICAL, return the content as a single event description
         events = [{
@@ -216,27 +220,29 @@ app.post('/events', async (req, res) => {
     });
     
     // Parse ICAL content to extract events array
-    let events = [];
+    let events: any[] = [];
     try {
       if (icalParser.isValidICalContent(icalContent)) {
         const parsedCalendar = await icalParser.parseICalContent(icalContent);
-        events = parsedCalendar.events.map(event => {
-          const ratio = icalParser.extractGenderRatio(event.description);
-          return {
         events = await Promise.all(
-          parsedCalendar.events.map(async event => ({
-            name: event.summary,
-            date: event.start.toISOString(),
-            time: event.start.toLocaleTimeString(),
-            location: event.location,
-            description: event.description,
-            url: event.url,
-            venue: event.location,
-            malePercentage: ratio?.malePercentage,
-            femalePercentage: ratio?.femalePercentage,
-            online: icalParser.isOnlineEvent(event)
-          };
-        });
+          parsedCalendar.events.map(async event => {
+            const ratio = icalParser.extractGenderRatio(event.description);
+            const rating = await ratingService.getRatingForPlace(event.location || '');
+            return {
+              name: event.summary,
+              date: event.start.toISOString(),
+              time: event.start.toLocaleTimeString(),
+              location: event.location,
+              description: event.description,
+              url: event.url,
+              venue: event.location,
+              malePercentage: ratio?.malePercentage,
+              femalePercentage: ratio?.femalePercentage,
+              online: icalParser.isOnlineEvent(event),
+              rating
+            };
+          })
+        );
       } else {
         // If not valid ICAL, return the content as a single event description
         events = [{

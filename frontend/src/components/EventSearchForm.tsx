@@ -18,6 +18,11 @@ import {
   Tooltip,
   Paper,
   Fab,
+  Link,
+  List,
+  ListItem,
+  ListItemText,
+  Rating,
   Checkbox,
   FormControlLabel,
 } from '@mui/material';
@@ -328,13 +333,6 @@ export default function EventSearchForm() {
                   onChange={handleInputChange}
                   required
                   InputLabelProps={{ shrink: true }}
-                  color={dateValidationState.startValid === false ? 'error' : 
-                         dateValidationState.startValid === true ? 'success' : 'primary'}
-                  InputProps={{
-                    endAdornment: dateValidationState.startValid === true && (
-                      <CheckIcon sx={{ color: 'success.main' }} />
-                    ),
-                  }}
                 />
                 <TextField
                   fullWidth
@@ -345,13 +343,6 @@ export default function EventSearchForm() {
                   onChange={handleInputChange}
                   required
                   InputLabelProps={{ shrink: true }}
-                  color={dateValidationState.endValid === false ? 'error' :
-                         dateValidationState.endValid === true ? 'success' : 'primary'}
-                  InputProps={{
-                    endAdornment: dateValidationState.endValid === true && (
-                      <CheckIcon sx={{ color: 'success.main' }} />
-                    ),
-                  }}
                 />
               </Box>
 
