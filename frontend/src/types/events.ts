@@ -1,8 +1,8 @@
 export interface EventSearchRequest {
   location: string;
   genre: string;
-  startDateTime: string;
-  endDateTime: string;
+  startDateTime?: string;
+  endDateTime?: string;
 }
 
 export interface Event {
