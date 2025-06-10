@@ -30,11 +30,15 @@ app.get('/events', async (req, res) => {
     const genre = req.query.genre as string;
     const startDateTime = req.query.startDateTime as string;
     const endDateTime = req.query.endDateTime as string;
+    const maleFemaleRatio = req.query.maleFemaleRatio as string | undefined;
+    const onlineOnly = req.query.onlineOnly === 'true';
     
     console.log(`Fetching events for location: ${location}`, {
       genre: genre || 'any',
       startDateTime: startDateTime || 'not specified',
-      endDateTime: endDateTime || 'not specified'
+      endDateTime: endDateTime || 'not specified',
+      maleFemaleRatio: maleFemaleRatio || 'none',
+      onlineOnly
     });
     
     const icalContent = await perplexityService.getEventsForLocation(location, {
@@ -44,12 +48,13 @@ app.get('/events', async (req, res) => {
     });
     
     // Parse ICAL content to extract events array
-    let events = [];
+    let events = [] as any[];
     try {
       if (icalParser.isValidICalContent(icalContent)) {
         const parsedCalendar = await icalParser.parseICalContent(icalContent);
-        events = await Promise.all(
-          parsedCalendar.events.map(async event => ({
+        events = parsedCalendar.events.map(event => {
+          const ratio = icalParser.extractGenderRatio(event.description);
+          return {
             name: event.summary,
             date: event.start.toISOString(),
             time: event.start.toLocaleTimeString(),
@@ -57,26 +62,22 @@ app.get('/events', async (req, res) => {
             description: event.description,
             url: event.url,
             venue: event.location,
-            rating: event.location
-              ? await ratingService.getRatingForPlace(event.location)
-              : null
-          }))
-        );
+            malePercentage: ratio?.malePercentage,
+            femalePercentage: ratio?.femalePercentage,
+            online: icalParser.isOnlineEvent(event)
+          };
+        });
       } else {
         // If not valid ICAL, return the content as a single event description
-        events = [
-          {
-            name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
-            date: startDateTime || new Date().toISOString(),
-            time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
-            location,
-            description: icalContent,
-            venue: location,
-            rating: location
-              ? await ratingService.getRatingForPlace(location)
-              : null
-          }
-        ];
+        events = [{
+          name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
+          date: startDateTime || new Date().toISOString(),
+          time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
+          location,
+          description: icalContent,
+          venue: location,
+          online: false
+        }];
       }
     } catch (parseError) {
       console.warn('Failed to parse ICAL content:', parseError);
@@ -88,10 +89,28 @@ app.get('/events', async (req, res) => {
         location,
         description: icalContent,
         venue: location,
-        rating: location
-          ? await ratingService.getRatingForPlace(location)
-          : null
+        online: false
       }];
+    }
+
+    if (maleFemaleRatio) {
+      const parts = maleFemaleRatio.split(':');
+      if (parts.length === 2) {
+        const male = parseFloat(parts[0]);
+        const female = parseFloat(parts[1]);
+        if (!isNaN(male) && !isNaN(female)) {
+          events = events.filter(e =>
+            typeof e.malePercentage === 'number' &&
+            typeof e.femalePercentage === 'number' &&
+            Math.abs(e.malePercentage - male) <= 10 &&
+            Math.abs(e.femalePercentage - female) <= 10
+          );
+        }
+      }
+    }
+
+    if (onlineOnly) {
+      events = events.filter(e => e.online === true);
     }
     
     res.json({
@@ -99,6 +118,8 @@ app.get('/events', async (req, res) => {
       genre: genre || null,
       startDateTime: startDateTime || null,
       endDateTime: endDateTime || null,
+      maleFemaleRatio: maleFemaleRatio || null,
+      onlineOnly,
       events,
       icalContent: icalContent,
       timestamp: new Date().toISOString()
@@ -178,12 +199,14 @@ app.get('/events', async (req, res) => {
 
 app.post('/events', async (req, res) => {
   try {
-    const { location = 'San Francisco', genre, startDateTime, endDateTime } = req.body;
+    const { location = 'San Francisco', genre, startDateTime, endDateTime, maleFemaleRatio, onlineOnly } = req.body;
     
     console.log(`Fetching events for location: ${location}`, {
       genre: genre || 'any',
       startDateTime: startDateTime || 'not specified',
-      endDateTime: endDateTime || 'not specified'
+      endDateTime: endDateTime || 'not specified',
+      maleFemaleRatio: maleFemaleRatio || 'none',
+      onlineOnly
     });
     
     const icalContent = await perplexityService.getEventsForLocation(location, {
@@ -197,6 +220,9 @@ app.post('/events', async (req, res) => {
     try {
       if (icalParser.isValidICalContent(icalContent)) {
         const parsedCalendar = await icalParser.parseICalContent(icalContent);
+        events = parsedCalendar.events.map(event => {
+          const ratio = icalParser.extractGenderRatio(event.description);
+          return {
         events = await Promise.all(
           parsedCalendar.events.map(async event => ({
             name: event.summary,
@@ -206,26 +232,22 @@ app.post('/events', async (req, res) => {
             description: event.description,
             url: event.url,
             venue: event.location,
-            rating: event.location
-              ? await ratingService.getRatingForPlace(event.location)
-              : null
-          }))
-        );
+            malePercentage: ratio?.malePercentage,
+            femalePercentage: ratio?.femalePercentage,
+            online: icalParser.isOnlineEvent(event)
+          };
+        });
       } else {
         // If not valid ICAL, return the content as a single event description
-        events = [
-          {
-            name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
-            date: startDateTime || new Date().toISOString(),
-            time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
-            location,
-            description: icalContent,
-            venue: location,
-            rating: location
-              ? await ratingService.getRatingForPlace(location)
-              : null
-          }
-        ];
+        events = [{
+          name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
+          date: startDateTime || new Date().toISOString(),
+          time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
+          location,
+          description: icalContent,
+          venue: location,
+          online: false
+        }];
       }
     } catch (parseError) {
       console.warn('Failed to parse ICAL content:', parseError);
@@ -237,17 +259,37 @@ app.post('/events', async (req, res) => {
         location,
         description: icalContent,
         venue: location,
-        rating: location
-          ? await ratingService.getRatingForPlace(location)
-          : null
+        online: false
       }];
     }
     
+    if (maleFemaleRatio) {
+      const parts = maleFemaleRatio.split(':');
+      if (parts.length === 2) {
+        const male = parseFloat(parts[0]);
+        const female = parseFloat(parts[1]);
+        if (!isNaN(male) && !isNaN(female)) {
+          events = events.filter(e =>
+            typeof e.malePercentage === 'number' &&
+            typeof e.femalePercentage === 'number' &&
+            Math.abs(e.malePercentage - male) <= 10 &&
+            Math.abs(e.femalePercentage - female) <= 10
+          );
+        }
+      }
+    }
+
+    if (onlineOnly) {
+      events = events.filter(e => e.online === true);
+    }
+
     res.json({
       location,
       genre: genre || null,
       startDateTime: startDateTime || null,
       endDateTime: endDateTime || null,
+      maleFemaleRatio: maleFemaleRatio || null,
+      onlineOnly,
       events,
       icalContent: icalContent,
       timestamp: new Date().toISOString()

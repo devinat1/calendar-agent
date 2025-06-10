@@ -1,8 +1,10 @@
 export interface EventSearchRequest {
   location: string;
   genre: string;
-  startDateTime?: string;
-  endDateTime?: string;
+  startDateTime: string;
+  endDateTime: string;
+  maleFemaleRatio?: string;
+  onlineOnly?: boolean;
 }
 
 export interface Event {
@@ -14,7 +16,9 @@ export interface Event {
   time?: string;
   price?: string;
   url?: string;
-  rating?: number;
+  malePercentage?: number;
+  femalePercentage?: number;
+  online?: boolean;
 }
 
 export interface EventSearchResponse {
@@ -22,6 +26,8 @@ export interface EventSearchResponse {
   genre: string | null;
   startDateTime: string | null;
   endDateTime: string | null;
+  maleFemaleRatio: string | null;
+  onlineOnly: boolean;
   events: Event[];
   icalContent: string;
   timestamp: string;

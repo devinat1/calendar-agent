@@ -18,8 +18,8 @@ import {
   Tooltip,
   Paper,
   Fab,
-  Rating,
-  Link,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -40,6 +40,10 @@ export default function EventSearchForm() {
   const [formData, setFormData] = useState<EventSearchRequest>({
     location: '',
     genre: '',
+    startDateTime: '',
+    endDateTime: '',
+    maleFemaleRatio: '',
+    onlineOnly: false,
   });
 
   const [searchResults, setSearchResults] = useState<EventSearchResponse | null>(null);
@@ -49,10 +53,10 @@ export default function EventSearchForm() {
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target as HTMLInputElement;
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
     }));
     
     // Clear error when user starts typing
@@ -313,11 +317,86 @@ export default function EventSearchForm() {
                 />
               </Box>
 
-              {/* Upcoming Week Info */}
-              <Alert severity="info" icon={<InfoIcon />}>
-                <AlertTitle>Date Range</AlertTitle>
-                Searching events for the upcoming week
-              </Alert>
+              {/* Date Range Row */}
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
+                <TextField
+                  fullWidth
+                  label="Start Date & Time Range"
+                  name="startDateTime"
+                  type="datetime-local"
+                  value={formData.startDateTime}
+                  onChange={handleInputChange}
+                  required
+                  InputLabelProps={{ shrink: true }}
+                  color={dateValidationState.startValid === false ? 'error' : 
+                         dateValidationState.startValid === true ? 'success' : 'primary'}
+                  InputProps={{
+                    endAdornment: dateValidationState.startValid === true && (
+                      <CheckIcon sx={{ color: 'success.main' }} />
+                    ),
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="End Date & Time Range"
+                  name="endDateTime"
+                  type="datetime-local"
+                  value={formData.endDateTime}
+                  onChange={handleInputChange}
+                  required
+                  InputLabelProps={{ shrink: true }}
+                  color={dateValidationState.endValid === false ? 'error' :
+                         dateValidationState.endValid === true ? 'success' : 'primary'}
+                  InputProps={{
+                    endAdornment: dateValidationState.endValid === true && (
+                      <CheckIcon sx={{ color: 'success.main' }} />
+                    ),
+                  }}
+                />
+              </Box>
+
+              {/* Additional Filters */}
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
+                <TextField
+                  fullWidth
+                  label="Male:Female Ratio"
+                  name="maleFemaleRatio"
+                  value={formData.maleFemaleRatio}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 60:40"
+                  InputProps={{
+                    startAdornment: <PriceIcon sx={{ mr: 1, color: 'action.active' }} />,
+                  }}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      name="onlineOnly"
+                      checked={formData.onlineOnly}
+                      onChange={handleInputChange}
+                    />
+                  }
+                  label="Online events only"
+                />
+              </Box>
+
+              {/* Helpful Tips */}
+              {!formData.startDateTime || !formData.endDateTime ? (
+                <Alert severity="info" icon={<InfoIcon />}>
+                  <AlertTitle>Date Selection Tips</AlertTitle>
+                  <List dense>
+                    <ListItem disablePadding>
+                      <ListItemText primary="• Select dates in the future for upcoming events" />
+                    </ListItem>
+                    <ListItem disablePadding>
+                      <ListItemText primary="• Keep the date range under 6 months for best results" />
+                    </ListItem>
+                    <ListItem disablePadding>
+                      <ListItemText primary="• End date must be after the start date" />
+                    </ListItem>
+                  </List>
+                </Alert>
+              ) : null}
 
               {/* Error Message */}
               {error && (
