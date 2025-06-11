@@ -11,6 +11,7 @@ export interface ParsedEvent {
   location?: string;
   url?: string;
   organizer?: string;
+  price?: string;
   malePercentage?: number;
   femalePercentage?: number;
 }
@@ -71,6 +72,7 @@ export class ICalParserService {
             location: component.location,
             url: component.url,
             organizer: typeof component.organizer === 'object' ? (component.organizer as any)?.val : component.organizer,
+            price: (component as any).price || (component as any).cost || this.extractPrice(component.description),
           };
           events.push(event);
         }
@@ -198,6 +200,21 @@ export class ICalParserService {
   }
 
   /**
+   * Attempt to extract a price from the event description.
+   * Looks for patterns like "$20" or "Price: 15".
+   */
+  extractPrice(description?: string): string | null {
+    if (!description) return null;
+    // Match $20, 20 USD, Price: 20, Cost: $15 etc
+    const priceRegex = /(\$\s?\d+(?:\.\d{1,2})?)|(?:price|cost)[:\s]*\$?(\d+(?:\.\d{1,2})?)/i;
+    const match = description.match(priceRegex);
+    if (match) {
+      return match[1] || (match[2] ? `$${match[2]}` : null);
+    }
+    return null;
+  }
+
+  /**
    * Filter events by desired male/female ratio with optional tolerance.
    */
   getEventsByGenderRatio(
@@ -264,7 +281,10 @@ export class ICalParserService {
       if (event.url) {
         icalString += `URL:${event.url}\n`;
       }
-      
+      if (event.price) {
+        icalString += `PRICE:${event.price}\n`;
+      }
+
       icalString += 'END:VEVENT\n';
     }
 

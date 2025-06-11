@@ -232,6 +232,27 @@ END:VCALENDAR`;
     });
   });
 
+  describe('price extraction', () => {
+    const priceIcal = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Test//Price Calendar//EN
+BEGIN:VEVENT
+UID:price-event@example.com
+DTSTAMP:20250615T120000Z
+DTSTART:20250615T180000Z
+DTEND:20250615T200000Z
+SUMMARY:Paid Event
+DESCRIPTION:Tickets cost $25 per person
+LOCATION:Town Hall
+END:VEVENT
+END:VCALENDAR`;
+
+    it('should extract price from description', async () => {
+      const parsed = await service.parseICalContent(priceIcal);
+      expect(parsed.events[0].price).toBe('$25');
+    });
+  });
+
   describe('convertToICalString', () => {
     let parsedCalendar: ParsedCalendar;
 
