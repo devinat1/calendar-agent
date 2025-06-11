@@ -34,13 +34,15 @@ app.get('/events', async (req, res) => {
     const endDateTime = req.query.endDateTime as string;
     const maleFemaleRatio = req.query.maleFemaleRatio as string | undefined;
     const onlineOnly = req.query.onlineOnly === 'true';
+    const maxPrice = req.query.maxPrice as string | undefined;
     
     console.log(`Fetching events for location: ${location}`, {
       genre: genre || 'any',
       startDateTime: startDateTime || 'not specified',
       endDateTime: endDateTime || 'not specified',
       maleFemaleRatio: maleFemaleRatio || 'none',
-      onlineOnly
+      onlineOnly,
+      maxPrice: maxPrice || 'none'
     });
     
     const icalContent = await perplexityService.getEventsForLocation(location, {
@@ -64,6 +66,7 @@ app.get('/events', async (req, res) => {
                 time: event.start.toLocaleTimeString(),
                 location: event.location,
                 description: event.description,
+                price: event.price,
                 url: event.url,
                 venue: event.location,
                 malePercentage: ratio?.malePercentage,
@@ -115,6 +118,17 @@ app.get('/events', async (req, res) => {
       }
     }
 
+    if (maxPrice) {
+      const priceLimit = parseFloat(maxPrice);
+      if (!isNaN(priceLimit)) {
+        events = events.filter(e => {
+          if (!e.price) return false;
+          const num = parseFloat(e.price.replace(/[^0-9.]/g, ''));
+          return !isNaN(num) && num <= priceLimit;
+        });
+      }
+    }
+
     if (onlineOnly) {
       events = events.filter(e => e.online === true);
     }
@@ -126,6 +140,7 @@ app.get('/events', async (req, res) => {
       endDateTime: endDateTime || null,
       maleFemaleRatio: maleFemaleRatio || null,
       onlineOnly,
+      maxPrice: maxPrice || null,
       events,
       icalContent: icalContent,
       timestamp: new Date().toISOString()
@@ -205,14 +220,15 @@ app.get('/events', async (req, res) => {
 
 app.post('/events', async (req, res) => {
   try {
-    const { location = 'San Francisco', genre, startDateTime, endDateTime, maleFemaleRatio, onlineOnly } = req.body;
+    const { location = 'San Francisco', genre, startDateTime, endDateTime, maleFemaleRatio, onlineOnly, maxPrice } = req.body;
     
     console.log(`Fetching events for location: ${location}`, {
       genre: genre || 'any',
       startDateTime: startDateTime || 'not specified',
       endDateTime: endDateTime || 'not specified',
       maleFemaleRatio: maleFemaleRatio || 'none',
-      onlineOnly
+      onlineOnly,
+      maxPrice: maxPrice || 'none'
     });
     
     const icalContent = await perplexityService.getEventsForLocation(location, {
@@ -236,6 +252,7 @@ app.post('/events', async (req, res) => {
               time: event.start.toLocaleTimeString(),
               location: event.location,
               description: event.description,
+              price: event.price,
               url: event.url,
               venue: event.location,
               malePercentage: ratio?.malePercentage,
@@ -287,6 +304,17 @@ app.post('/events', async (req, res) => {
       }
     }
 
+    if (maxPrice) {
+      const priceLimit = parseFloat(maxPrice);
+      if (!isNaN(priceLimit)) {
+        events = events.filter(e => {
+          if (!e.price) return false;
+          const num = parseFloat(e.price.replace(/[^0-9.]/g, ''));
+          return !isNaN(num) && num <= priceLimit;
+        });
+      }
+    }
+
     if (onlineOnly) {
       events = events.filter(e => e.online === true);
     }
@@ -298,6 +326,7 @@ app.post('/events', async (req, res) => {
       endDateTime: endDateTime || null,
       maleFemaleRatio: maleFemaleRatio || null,
       onlineOnly,
+      maxPrice: maxPrice || null,
       events,
       icalContent: icalContent,
       timestamp: new Date().toISOString()

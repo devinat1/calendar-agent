@@ -5,6 +5,7 @@ export interface EventSearchRequest {
   endDateTime: string;
   maleFemaleRatio?: string;
   onlineOnly?: boolean;
+  maxPrice?: number;
 }
 
 export interface Event {
@@ -29,6 +30,7 @@ export interface EventSearchResponse {
   endDateTime: string | null;
   maleFemaleRatio: string | null;
   onlineOnly: boolean;
+  maxPrice: number | null;
   events: Event[];
   icalContent: string;
   timestamp: string;

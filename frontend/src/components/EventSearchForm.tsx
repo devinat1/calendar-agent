@@ -52,6 +52,7 @@ export default function EventSearchForm() {
     endDateTime: '',
     maleFemaleRatio: '',
     onlineOnly: false,
+    maxPrice: undefined,
   });
 
   const [searchResults, setSearchResults] = useState<EventSearchResponse | null>(null);
@@ -64,7 +65,7 @@ export default function EventSearchForm() {
     const { name, value, type, checked } = e.target as HTMLInputElement;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === 'checkbox' ? checked : type === 'number' ? Number(value) : value,
     }));
     
     // Clear error when user starts typing
@@ -413,6 +414,18 @@ export default function EventSearchForm() {
                   value={formData.maleFemaleRatio}
                   onChange={handleInputChange}
                   placeholder="e.g., 60:40"
+                  InputProps={{
+                    startAdornment: <PriceIcon sx={{ mr: 1, color: 'action.active' }} />,
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="Max Price"
+                  name="maxPrice"
+                  type="number"
+                  value={formData.maxPrice ?? ''}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 50"
                   InputProps={{
                     startAdornment: <PriceIcon sx={{ mr: 1, color: 'action.active' }} />,
                   }}
