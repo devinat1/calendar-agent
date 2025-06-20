@@ -4,6 +4,7 @@ import cors from 'cors';
 import { PerplexityService } from './services/perplexity.service';
 import { ICalParserService } from './services/ical-parser.service';
 import { RatingService } from './services/rating.service';
+import { EventVerificationService, VerifiedEvent } from './services/event-verification.service';
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ app.get('/events', async (req, res) => {
     const maleFemaleRatio = req.query.maleFemaleRatio as string | undefined;
     const onlineOnly = req.query.onlineOnly === 'true';
     const maxPrice = req.query.maxPrice as string | undefined;
+    const enableVerification = req.query.enableVerification === 'true';
     
     console.log(`Fetching events for location: ${location}`, {
       genre: genre || 'any',
@@ -53,13 +55,15 @@ app.get('/events', async (req, res) => {
       endDateTime: endDateTime || 'not specified',
       maleFemaleRatio: maleFemaleRatio || 'none',
       onlineOnly,
-      maxPrice: maxPrice || 'none'
+      maxPrice: maxPrice || 'none',
+      enableVerification
     });
     
     const icalContent = await perplexityService.getEventsForLocation(location, {
       genre,
       startDateTime,
-      endDateTime
+      endDateTime,
+      enableVerification
     });
     
     // Parse ICAL content to extract events array
@@ -71,6 +75,11 @@ app.get('/events', async (req, res) => {
             parsedCalendar.events.map(async event => {
               const ratio = icalParser.extractGenderRatio(event.description);
               const rating = await ratingService.getRatingForPlace(event.location || '');
+              
+              // Check if this is a verified event
+              const verifiedEvent = event as any as VerifiedEvent;
+              const hasVerification = 'confidence' in verifiedEvent;
+              
               return {
                 name: event.summary,
                 date: event.start.toISOString(),
@@ -78,12 +87,19 @@ app.get('/events', async (req, res) => {
                 location: event.location,
                 description: event.description,
                 price: event.price,
-                url: event.url,
+                url: event.url || (hasVerification && verifiedEvent.matchedSource?.url),
                 venue: event.location,
                 malePercentage: ratio?.malePercentage,
                 femalePercentage: ratio?.femalePercentage,
                 online: icalParser.isOnlineEvent(event),
-                rating
+                rating,
+                // Add verification fields if available
+                ...(hasVerification && {
+                  confidence: verifiedEvent.confidence,
+                  verificationStatus: verifiedEvent.verificationStatus,
+                  matchedSource: verifiedEvent.matchedSource,
+                  discrepancies: verifiedEvent.discrepancies
+                })
               };
             })
           );
@@ -231,7 +247,7 @@ app.get('/events', async (req, res) => {
 
 app.post('/events', async (req, res) => {
   try {
-    const { location = 'San Francisco', genre, startDateTime, endDateTime, maleFemaleRatio, onlineOnly, maxPrice } = req.body;
+    const { location = 'San Francisco', genre, startDateTime, endDateTime, maleFemaleRatio, onlineOnly, maxPrice, enableVerification } = req.body;
     
     console.log(`Fetching events for location: ${location}`, {
       genre: genre || 'any',
@@ -239,13 +255,15 @@ app.post('/events', async (req, res) => {
       endDateTime: endDateTime || 'not specified',
       maleFemaleRatio: maleFemaleRatio || 'none',
       onlineOnly,
-      maxPrice: maxPrice || 'none'
+      maxPrice: maxPrice || 'none',
+      enableVerification
     });
     
     const icalContent = await perplexityService.getEventsForLocation(location, {
       genre,
       startDateTime,
-      endDateTime
+      endDateTime,
+      enableVerification
     });
     
     // Parse ICAL content to extract events array
@@ -257,6 +275,11 @@ app.post('/events', async (req, res) => {
           parsedCalendar.events.map(async event => {
             const ratio = icalParser.extractGenderRatio(event.description);
             const rating = await ratingService.getRatingForPlace(event.location || '');
+            
+            // Check if this is a verified event
+            const verifiedEvent = event as any as VerifiedEvent;
+            const hasVerification = 'confidence' in verifiedEvent;
+            
             return {
               name: event.summary,
               date: event.start.toISOString(),
@@ -264,12 +287,19 @@ app.post('/events', async (req, res) => {
               location: event.location,
               description: event.description,
               price: event.price,
-              url: event.url,
+              url: event.url || (hasVerification && verifiedEvent.matchedSource?.url),
               venue: event.location,
               malePercentage: ratio?.malePercentage,
               femalePercentage: ratio?.femalePercentage,
               online: icalParser.isOnlineEvent(event),
-              rating
+              rating,
+              // Add verification fields if available
+              ...(hasVerification && {
+                confidence: verifiedEvent.confidence,
+                verificationStatus: verifiedEvent.verificationStatus,
+                matchedSource: verifiedEvent.matchedSource,
+                discrepancies: verifiedEvent.discrepancies
+              })
             };
           })
         );

@@ -54,6 +54,7 @@ export default function EventSearchForm() {
     maleFemaleRatio: '',
     onlineOnly: false,
     maxPrice: undefined,
+    enableVerification: true,
   });
 
   const [searchResults, setSearchResults] = useState<EventSearchResponse | null>(null);
@@ -479,6 +480,20 @@ export default function EventSearchForm() {
                 />
               </Box>
 
+              {/* Verification Option */}
+              <Box>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      name="enableVerification"
+                      checked={formData.enableVerification}
+                      onChange={handleInputChange}
+                    />
+                  }
+                  label="Enable event verification (provides source links and confidence scores)"
+                />
+              </Box>
+
               {/* Helpful Tips */}
               {!formData.startDateTime || !formData.endDateTime ? (
                 <Alert severity="info" icon={<InfoIcon />}>
@@ -567,21 +582,50 @@ export default function EventSearchForm() {
                   <Card key={index} variant="outlined" sx={{ position: 'relative' }}>
                     <CardContent sx={{ p: 3 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <Typography variant="h6" component="h3" sx={{ flex: 1, pr: 2 }}>
-                          {event.url ? (
-                            <Link
-                              href={event.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              underline="hover"
-                              color="inherit"
-                            >
-                              {event.name}
-                            </Link>
-                          ) : (
-                            event.name
+                        <Box sx={{ flex: 1, pr: 2 }}>
+                          {/* Verification badges */}
+                          {event.verificationStatus && (
+                            <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Chip
+                                size="small"
+                                label={
+                                  event.verificationStatus === 'verified' ? '✓ Verified' :
+                                  event.verificationStatus === 'partial' ? '⚠ Partially Verified' :
+                                  '✗ Unverified'
+                                }
+                                color={
+                                  event.verificationStatus === 'verified' ? 'success' :
+                                  event.verificationStatus === 'partial' ? 'warning' :
+                                  'error'
+                                }
+                                variant="outlined"
+                              />
+                              {event.confidence !== undefined && (
+                                <Typography variant="caption" color="text.secondary">
+                                  {event.confidence}% confidence
+                                </Typography>
+                              )}
+                            </Box>
                           )}
-                        </Typography>
+                          
+                          <Typography variant="h6" component="h3">
+                            {event.url ? (
+                              <Link
+                                href={event.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                underline="hover"
+                                color="inherit"
+                                sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+                              >
+                                {event.name}
+                                <LaunchIcon fontSize="small" />
+                              </Link>
+                            ) : (
+                              event.name
+                            )}
+                          </Typography>
+                        </Box>
                         
                         <Tooltip title="Download this event">
                           <IconButton

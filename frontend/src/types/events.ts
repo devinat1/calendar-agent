@@ -6,6 +6,7 @@ export interface EventSearchRequest {
   maleFemaleRatio?: string;
   onlineOnly?: boolean;
   maxPrice?: number;
+  enableVerification?: boolean;
 }
 
 export interface Event {
@@ -21,6 +22,15 @@ export interface Event {
   femalePercentage?: number;
   online?: boolean;
   rating?: number;
+  // Verification fields
+  confidence?: number;
+  verificationStatus?: 'verified' | 'partial' | 'unverified';
+  matchedSource?: {
+    name: string;
+    url?: string;
+    source: string;
+  };
+  discrepancies?: string[];
 }
 
 export interface EventSearchResponse {
