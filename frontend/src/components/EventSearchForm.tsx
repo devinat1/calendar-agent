@@ -40,6 +40,7 @@ import {
   Casino as CasinoIcon,
   Today as TodayIcon,
   NextWeek as NextWeekIcon,
+  AutoFixHigh as SparkleIcon,
 } from '@mui/icons-material';
 import { EventSearchRequest, EventSearchResponse, Event } from '@/types/events';
 import { searchEvents } from '@/utils/api';
@@ -330,6 +331,33 @@ export default function EventSearchForm() {
     }
   };
 
+  const handleRandomEventType = () => {
+    const eventTypes = [
+      'music', 'concert', 'rock', 'pop', 'jazz', 'classical', 'electronic', 'hip hop',
+      'sports', 'football', 'basketball', 'soccer', 'tennis', 'baseball', 'hockey',
+      'theater', 'musical', 'play', 'drama', 'comedy show', 'stand-up comedy',
+      'art', 'exhibition', 'gallery opening', 'painting', 'sculpture',
+      'food', 'restaurant opening', 'food festival', 'wine tasting', 'cooking class',
+      'technology', 'tech conference', 'startup event', 'coding workshop',
+      'fitness', 'yoga class', 'marathon', 'gym opening', 'dance class',
+      'business', 'networking', 'conference', 'seminar', 'workshop',
+      'family', 'kids event', 'family fun', 'children show',
+      'nightlife', 'party', 'club opening', 'bar event',
+      'cultural', 'festival', 'celebration', 'parade',
+      'educational', 'lecture', 'book reading', 'library event',
+      'outdoor', 'hiking', 'camping', 'beach event', 'park activity',
+      'gaming', 'esports', 'board games', 'video game tournament'
+    ];
+    
+    const randomEventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+    setFormData(prev => ({ ...prev, genre: randomEventType }));
+    
+    // Clear error when user uses random generation
+    if (error) {
+      setError(null);
+    }
+  };
+
   return (
     <Box sx={{ maxWidth: '1200px', mx: 'auto', p: 3 }}>
       <Card elevation={3} sx={{ mb: 4 }}>
@@ -365,6 +393,17 @@ export default function EventSearchForm() {
                   required
                   InputProps={{
                     startAdornment: <EventIcon sx={{ mr: 1, color: 'action.active' }} />,
+                    endAdornment: (
+                      <Tooltip title="Generate random event type">
+                        <IconButton
+                          size="small"
+                          onClick={handleRandomEventType}
+                          sx={{ color: 'primary.main' }}
+                        >
+                          <SparkleIcon />
+                        </IconButton>
+                      </Tooltip>
+                    ),
                   }}
                   helperText="What sort of event would you like to partake in?"
                 />
