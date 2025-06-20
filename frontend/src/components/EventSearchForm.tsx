@@ -334,19 +334,18 @@ export default function EventSearchForm() {
   const handleRandomEventType = () => {
     const eventTypes = [
       'music', 'concert', 'rock', 'pop', 'jazz', 'classical', 'electronic', 'hip hop',
-      'sports', 'football', 'basketball', 'soccer', 'tennis', 'baseball', 'hockey',
+      'sports', 'football', 'basketball', 'soccer', 'tennis', 'baseball',
       'theater', 'musical', 'play', 'drama', 'comedy show', 'stand-up comedy',
       'art', 'exhibition', 'gallery opening', 'painting', 'sculpture',
       'food', 'restaurant opening', 'food festival', 'wine tasting', 'cooking class',
       'technology', 'tech conference', 'startup event', 'coding workshop',
       'fitness', 'yoga class', 'marathon', 'gym opening', 'dance class',
       'business', 'networking', 'conference', 'seminar', 'workshop',
-      'family', 'kids event', 'family fun', 'children show',
-      'nightlife', 'party', 'club opening', 'bar event',
-      'cultural', 'festival', 'celebration', 'parade',
-      'educational', 'lecture', 'book reading', 'library event',
-      'outdoor', 'hiking', 'camping', 'beach event', 'park activity',
-      'gaming', 'esports', 'board games', 'video game tournament'
+      'nightlife', 'party', 'club opening', 'bar event', 'burlesque show', 'fetish party', 'adult cabaret',
+      'cultural', 'festival', 'celebration', 'parade', 'erotic art exhibit',
+      'educational', 'lecture', 'book reading', 'library event', 'sensual workshop',
+      'outdoor', 'hiking', 'camping', 'beach event', 'park activity', 'clothing-optional gathering',
+      'gaming', 'esports', 'board games', 'video game tournament', 'adult game night', 'salsa'
     ];
     
     const randomEventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
