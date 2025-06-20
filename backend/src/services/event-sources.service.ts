@@ -44,8 +44,10 @@ export class EventSourcesService {
    */
   async getAllEvents(options: EventSourceOptions): Promise<RealEvent[]> {
     const promises: Promise<RealEvent[]>[] = [];
+    let sourceCount = 0;
 
     if (this.eventbriteToken) {
+      sourceCount++;
       promises.push(this.getEventbriteEvents(options).catch(err => {
         console.error('Eventbrite error:', err);
         return [];
@@ -53,6 +55,7 @@ export class EventSourcesService {
     }
 
     if (this.ticketmasterApiKey) {
+      sourceCount++;
       promises.push(this.getTicketmasterEvents(options).catch(err => {
         console.error('Ticketmaster error:', err);
         return [];
@@ -60,6 +63,7 @@ export class EventSourcesService {
     }
 
     if (this.meetupApiKey) {
+      sourceCount++;
       promises.push(this.getMeetupEvents(options).catch(err => {
         console.error('Meetup error:', err);
         return [];
@@ -67,14 +71,24 @@ export class EventSourcesService {
     }
 
     if (this.googlePlacesApiKey) {
+      sourceCount++;
       promises.push(this.getGoogleEvents(options).catch(err => {
         console.error('Google Places error:', err);
         return [];
       }));
     }
 
+    console.log(`Event sources: ${sourceCount} configured API keys found`);
+    
+    if (sourceCount === 0) {
+      console.warn('No event source API keys configured - verification will rely on URL generation only');
+    }
+
     const results = await Promise.all(promises);
-    return results.flat();
+    const totalEvents = results.flat();
+    console.log(`Event sources fetched ${totalEvents.length} real events for verification`);
+    
+    return totalEvents;
   }
 
   /**

@@ -42,12 +42,16 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const date_fns_1 = require("date-fns");
 const ical_parser_service_1 = require("./ical-parser.service");
+const event_verification_service_1 = require("./event-verification.service");
+const url_generator_service_1 = require("./url-generator.service");
 class PerplexityService {
     constructor() {
         this.baseUrl = 'https://api.perplexity.ai/chat/completions';
         // You'll need to set your API key here or pass it as a parameter
         this.apiKey = process.env.PERPLEXITY_API_KEY || 'your-api-key-here';
         this.icalParser = new ical_parser_service_1.ICalParserService();
+        this.verificationService = new event_verification_service_1.EventVerificationService();
+        this.urlGenerator = new url_generator_service_1.UrlGeneratorService();
     }
     /**
      * Get events for a location, with optional genre and time interval.
@@ -83,7 +87,30 @@ class PerplexityService {
                 throw new Error('Perplexity API key is not configured. Please contact the administrator to set up the API key.');
             }
             const genreString = genre ? ` of genre "${genre}"` : '';
-            const prompt = `Give events${genreString} happening in ${location}${intervalString ? intervalString : ' this week'}. Only include events that are scheduled in the future. Format the response as a valid ICAL (.ics) calendar file with proper VEVENT entries. Include event titles, descriptions, start/end times, and locations. Use proper ICAL formatting with BEGIN:VCALENDAR, VERSION:2.0, PRODID, and END:VCALENDAR structure.`;
+            const prompt = `Find real, specific events${genreString} happening in ${location}${intervalString ? intervalString : ' this week'}. Only include actual scheduled events in the future, not generic descriptions. For each event, provide:
+
+1. Exact event name and description
+2. Specific venue name and address
+3. Precise date and time
+4. Ticket/registration URL (very important - include web links whenever possible)
+5. Event organizer or venue website
+
+Format as a valid ICAL (.ics) file with proper VEVENT entries. Include URL field for each event when available. Example format:
+
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Events//Events Calendar//EN
+BEGIN:VEVENT
+SUMMARY:Specific Event Name
+DTSTART:20240115T200000Z
+DTEND:20240115T230000Z
+LOCATION:Venue Name, Address
+DESCRIPTION:Event details
+URL:https://eventbrite.com/e/event-link or venue website
+END:VEVENT
+END:VCALENDAR
+
+Focus on real events with web presence and ticketing links.`;
             console.log(`Making API call to Perplexity with prompt: "${prompt}"`);
             const response = await axios_1.default.post(this.baseUrl, {
                 model: 'llama-3.1-sonar-large-128k-online',
@@ -120,11 +147,18 @@ class PerplexityService {
             // Generate proper ICAL content for return if needed
             if (parsedCalendar && parsedCalendar.events.length > 0) {
                 console.log(`Using parsed calendar with ${parsedCalendar.events.length} events`);
+                // ALWAYS ensure events have URLs - this is critical for deployment
+                console.log('Ensuring all events have URLs...');
+                parsedCalendar.events = this.urlGenerator.generateFallbackUrls(parsedCalendar.events, location, genre);
+                // Log URL generation results
+                const eventsWithUrls = parsedCalendar.events.filter(e => e.url).length;
+                console.log(`URL generation complete: ${eventsWithUrls}/${parsedCalendar.events.length} events now have URLs`);
                 icalContentToReturn = this.icalParser.convertToICalString(parsedCalendar);
             }
             else if (!eventsContent.includes('BEGIN:VCALENDAR')) {
                 // If Perplexity didn't return proper ICAL format, create a basic one with the content as description
                 console.log('Creating fallback ICAL structure for return');
+                const fallbackSearchUrl = url_generator_service_1.UrlGeneratorService.createUniversalSearchUrl(genre || 'events', location, startDateTime ? (0, date_fns_1.parseISO)(startDateTime) : new Date());
                 icalContentToReturn = `BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Events API//Events Calendar//EN
@@ -139,9 +173,25 @@ DTSTART:${startDateTime ? (0, date_fns_1.parseISO)(startDateTime).toISOString().
 DTEND:${endDateTime ? (0, date_fns_1.parseISO)(endDateTime).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z') : new Date(Date.now() + 86400000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z')}
 SUMMARY:Events in ${location}${genre ? ` - ${genre}` : ''}
 DESCRIPTION:${eventsContent.replace(/\n/g, '\\n')}
+URL:${fallbackSearchUrl}
 LOCATION:${location}
 END:VEVENT
 END:VCALENDAR`;
+            }
+            // Verify events if requested
+            if (options.enableVerification && parsedCalendar && parsedCalendar.events.length > 0) {
+                const verificationResult = await this.verificationService.verifyEvents(parsedCalendar.events, location, genre, startDateTime, endDateTime);
+                console.log(`Event verification complete:`, {
+                    total: verificationResult.stats.totalEvents,
+                    verified: verificationResult.stats.verifiedCount,
+                    partial: verificationResult.stats.partialCount,
+                    unverified: verificationResult.stats.unverifiedCount,
+                    avgConfidence: verificationResult.stats.averageConfidence
+                });
+                // Update parsedCalendar with verified events
+                parsedCalendar.events = verificationResult.verifiedEvents;
+                // Regenerate ICAL with verification metadata
+                icalContentToReturn = this.generateVerifiedICalString(parsedCalendar, verificationResult.verifiedEvents);
             }
             // Save to file
             await this.saveToFile(location, eventsContent, genre, startDateTime, endDateTime, parsedCalendar);
@@ -240,6 +290,62 @@ END:VCALENDAR`;
             console.error('Error saving ICAL file:', error);
             throw new Error('Failed to save ICAL calendar file');
         }
+    }
+    /**
+     * Generate ICAL string with verification metadata
+     */
+    generateVerifiedICalString(parsedCalendar, verifiedEvents) {
+        let icalString = 'BEGIN:VCALENDAR\n';
+        icalString += 'VERSION:2.0\n';
+        icalString += `PRODID:${parsedCalendar.metadata.prodId || '-//Events API//Verified Events Calendar//EN'}\n`;
+        icalString += 'CALSCALE:GREGORIAN\n';
+        icalString += `METHOD:${parsedCalendar.metadata.method || 'PUBLISH'}\n`;
+        if (parsedCalendar.metadata.calendarName) {
+            icalString += `X-WR-CALNAME:${parsedCalendar.metadata.calendarName} (Verified)\n`;
+        }
+        for (const event of verifiedEvents) {
+            icalString += 'BEGIN:VEVENT\n';
+            icalString += `UID:${event.uid}\n`;
+            icalString += `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z')}\n`;
+            icalString += `DTSTART:${event.start.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z')}\n`;
+            icalString += `DTEND:${event.end.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z')}\n`;
+            icalString += `SUMMARY:${event.summary}${event.verificationStatus === 'verified' ? ' ✓' : event.verificationStatus === 'partial' ? ' ⚠' : ''}\n`;
+            // Add verification metadata to description
+            let description = event.description || '';
+            description += `\n\n[Verification Status: ${event.verificationStatus.toUpperCase()}]`;
+            description += `\n[Confidence: ${event.confidence}% - ${event_verification_service_1.EventVerificationService.getConfidenceDescription(event.confidence)}]`;
+            if (event.matchedSource) {
+                description += `\n[Source: ${event.matchedSource.source}]`;
+                if (event.matchedSource.url) {
+                    description += `\n[More Info: ${event.matchedSource.url}]`;
+                }
+            }
+            if (event.discrepancies && event.discrepancies.length > 0) {
+                description += `\n[Discrepancies Found:]`;
+                event.discrepancies.forEach(d => {
+                    description += `\n- ${d}`;
+                });
+            }
+            icalString += `DESCRIPTION:${description.replace(/\n/g, '\\n')}\n`;
+            if (event.location) {
+                icalString += `LOCATION:${event.location}\n`;
+            }
+            if (event.organizer) {
+                icalString += `ORGANIZER:${event.organizer}\n`;
+            }
+            if (event.url) {
+                icalString += `URL:${event.url}\n`;
+            }
+            if (event.price) {
+                icalString += `X-PRICE:${event.price}\n`;
+            }
+            // Add custom properties for verification
+            icalString += `X-VERIFICATION-STATUS:${event.verificationStatus}\n`;
+            icalString += `X-CONFIDENCE:${event.confidence}\n`;
+            icalString += 'END:VEVENT\n';
+        }
+        icalString += 'END:VCALENDAR\n';
+        return icalString;
     }
 }
 exports.PerplexityService = PerplexityService;

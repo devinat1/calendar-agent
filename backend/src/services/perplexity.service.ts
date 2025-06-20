@@ -4,6 +4,7 @@ import * as path from 'path';
 import { isAfter, parseISO } from 'date-fns';
 import { ICalParserService, ParsedCalendar } from './ical-parser.service';
 import { EventVerificationService, VerifiedEvent } from './event-verification.service';
+import { UrlGeneratorService } from './url-generator.service';
 
 export interface PerplexityResponse {
   choices: Array<{
@@ -25,12 +26,14 @@ export class PerplexityService {
   private readonly baseUrl = 'https://api.perplexity.ai/chat/completions';
   private readonly icalParser: ICalParserService;
   private readonly verificationService: EventVerificationService;
+  private readonly urlGenerator: UrlGeneratorService;
   
   constructor() {
     // You'll need to set your API key here or pass it as a parameter
     this.apiKey = process.env.PERPLEXITY_API_KEY || 'your-api-key-here';
     this.icalParser = new ICalParserService();
     this.verificationService = new EventVerificationService();
+    this.urlGenerator = new UrlGeneratorService();
   }
 
   /**
@@ -70,7 +73,30 @@ export class PerplexityService {
       }
       
       const genreString = genre ? ` of genre "${genre}"` : '';
-      const prompt = `Give events${genreString} happening in ${location}${intervalString ? intervalString : ' this week'}. Only include events that are scheduled in the future. Format the response as a valid ICAL (.ics) calendar file with proper VEVENT entries. Include event titles, descriptions, start/end times, locations, and whenever possible include URL links to event pages, ticket purchase links, or venue websites. Use proper ICAL formatting with BEGIN:VCALENDAR, VERSION:2.0, PRODID, and END:VCALENDAR structure. If you find specific events with URLs, include them in the URL field of each VEVENT.`;
+      const prompt = `Find real, specific events${genreString} happening in ${location}${intervalString ? intervalString : ' this week'}. Only include actual scheduled events in the future, not generic descriptions. For each event, provide:
+
+1. Exact event name and description
+2. Specific venue name and address
+3. Precise date and time
+4. Ticket/registration URL (very important - include web links whenever possible)
+5. Event organizer or venue website
+
+Format as a valid ICAL (.ics) file with proper VEVENT entries. Include URL field for each event when available. Example format:
+
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Events//Events Calendar//EN
+BEGIN:VEVENT
+SUMMARY:Specific Event Name
+DTSTART:20240115T200000Z
+DTEND:20240115T230000Z
+LOCATION:Venue Name, Address
+DESCRIPTION:Event details
+URL:https://eventbrite.com/e/event-link or venue website
+END:VEVENT
+END:VCALENDAR
+
+Focus on real events with web presence and ticketing links.`;
       console.log(`Making API call to Perplexity with prompt: "${prompt}"`);
       
       const response = await axios.post<PerplexityResponse>(
@@ -113,10 +139,29 @@ export class PerplexityService {
       // Generate proper ICAL content for return if needed
       if (parsedCalendar && parsedCalendar.events.length > 0) {
         console.log(`Using parsed calendar with ${parsedCalendar.events.length} events`);
+        
+        // ALWAYS ensure events have URLs - this is critical for deployment
+        console.log('Ensuring all events have URLs...');
+        parsedCalendar.events = this.urlGenerator.generateFallbackUrls(
+          parsedCalendar.events, 
+          location, 
+          genre
+        );
+        
+        // Log URL generation results
+        const eventsWithUrls = parsedCalendar.events.filter(e => e.url).length;
+        console.log(`URL generation complete: ${eventsWithUrls}/${parsedCalendar.events.length} events now have URLs`);
+        
         icalContentToReturn = this.icalParser.convertToICalString(parsedCalendar);
       } else if (!eventsContent.includes('BEGIN:VCALENDAR')) {
         // If Perplexity didn't return proper ICAL format, create a basic one with the content as description
         console.log('Creating fallback ICAL structure for return');
+        const fallbackSearchUrl = UrlGeneratorService.createUniversalSearchUrl(
+          genre || 'events', 
+          location, 
+          startDateTime ? parseISO(startDateTime) : new Date()
+        );
+        
         icalContentToReturn = `BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Events API//Events Calendar//EN
@@ -131,6 +176,7 @@ DTSTART:${startDateTime ? parseISO(startDateTime).toISOString().replace(/[-:]/g,
 DTEND:${endDateTime ? parseISO(endDateTime).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z') : new Date(Date.now() + 86400000).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z/, 'Z')}
 SUMMARY:Events in ${location}${genre ? ` - ${genre}` : ''}
 DESCRIPTION:${eventsContent.replace(/\n/g, '\\n')}
+URL:${fallbackSearchUrl}
 LOCATION:${location}
 END:VEVENT
 END:VCALENDAR`;

@@ -7,6 +7,9 @@ export interface ParsedEvent {
     location?: string;
     url?: string;
     organizer?: string;
+    price?: string;
+    malePercentage?: number;
+    femalePercentage?: number;
 }
 export interface ParsedCalendar {
     events: ParsedEvent[];
@@ -51,6 +54,28 @@ export declare class ICalParserService {
      * @returns Events matching the genre
      */
     getEventsByGenre(parsedCalendar: ParsedCalendar, genre: string): ParsedEvent[];
+    /**
+     * Extract male/female ratio from event description if present.
+     * Expects patterns like "60% male, 40% female".
+     */
+    extractGenderRatio(description?: string): {
+        malePercentage: number;
+        femalePercentage: number;
+    } | null;
+    /**
+     * Attempt to extract a price from the event description.
+     * Looks for patterns like "$20" or "Price: 15".
+     */
+    extractPrice(description?: string): string | null;
+    /**
+     * Filter events by desired male/female ratio with optional tolerance.
+     */
+    getEventsByGenderRatio(parsedCalendar: ParsedCalendar, malePercentage: number, femalePercentage: number, tolerance?: number): ParsedEvent[];
+    /**
+     * Determine if an event is online/virtual based on description or location.
+     */
+    isOnlineEvent(event: ParsedEvent): boolean;
+    filterOnlineEvents(parsedCalendar: ParsedCalendar): ParsedEvent[];
     /**
      * Convert parsed calendar back to ICAL string format
      * @param parsedCalendar Parsed calendar data

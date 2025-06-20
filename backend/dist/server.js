@@ -11,10 +11,21 @@ const ical_parser_service_1 = require("./services/ical-parser.service");
 const rating_service_1 = require("./services/rating.service");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 // Middleware
-app.use((0, cors_1.default)());
-app.options('*', (0, cors_1.default)());
+const corsOptions = {
+    origin: [
+        'http://localhost:3000', // Frontend development server
+        'http://127.0.0.1:3000', // Alternative localhost format
+        process.env.FRONTEND_URL || 'https://calendar-agent-1lar.vercel.app'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+};
+app.use((0, cors_1.default)(corsOptions));
+// Handle CORS preflight requests
+app.options('*', (0, cors_1.default)(corsOptions));
 app.use(express_1.default.json());
 // Initialize services
 const perplexityService = new perplexity_service_1.PerplexityService();
@@ -30,49 +41,70 @@ app.get('/events', async (req, res) => {
         const genre = req.query.genre;
         const startDateTime = req.query.startDateTime;
         const endDateTime = req.query.endDateTime;
+        const maleFemaleRatio = req.query.maleFemaleRatio;
+        const onlineOnly = req.query.onlineOnly === 'true';
+        const maxPrice = req.query.maxPrice;
+        const enableVerification = req.query.enableVerification === 'true';
         console.log(`Fetching events for location: ${location}`, {
             genre: genre || 'any',
             startDateTime: startDateTime || 'not specified',
-            endDateTime: endDateTime || 'not specified'
+            endDateTime: endDateTime || 'not specified',
+            maleFemaleRatio: maleFemaleRatio || 'none',
+            onlineOnly,
+            maxPrice: maxPrice || 'none',
+            enableVerification
         });
         const icalContent = await perplexityService.getEventsForLocation(location, {
             genre,
             startDateTime,
-            endDateTime
+            endDateTime,
+            enableVerification
         });
         // Parse ICAL content to extract events array
         let events = [];
         try {
             if (icalParser.isValidICalContent(icalContent)) {
                 const parsedCalendar = await icalParser.parseICalContent(icalContent);
-                events = await Promise.all(parsedCalendar.events.map(async (event) => ({
-                    name: event.summary,
-                    date: event.start.toISOString(),
-                    time: event.start.toLocaleTimeString(),
-                    location: event.location,
-                    description: event.description,
-                    url: event.url,
-                    venue: event.location,
-                    rating: event.location
-                        ? await ratingService.getRatingForPlace(event.location)
-                        : null
-                })));
+                events = await Promise.all(parsedCalendar.events.map(async (event) => {
+                    const ratio = icalParser.extractGenderRatio(event.description);
+                    const rating = await ratingService.getRatingForPlace(event.location || '');
+                    // Check if this is a verified event
+                    const verifiedEvent = event;
+                    const hasVerification = 'confidence' in verifiedEvent;
+                    return {
+                        name: event.summary,
+                        date: event.start.toISOString(),
+                        time: event.start.toLocaleTimeString(),
+                        location: event.location,
+                        description: event.description,
+                        price: event.price,
+                        url: event.url || (hasVerification && verifiedEvent.matchedSource?.url),
+                        venue: event.location,
+                        malePercentage: ratio?.malePercentage,
+                        femalePercentage: ratio?.femalePercentage,
+                        online: icalParser.isOnlineEvent(event),
+                        rating,
+                        // Add verification fields if available
+                        ...(hasVerification && {
+                            confidence: verifiedEvent.confidence,
+                            verificationStatus: verifiedEvent.verificationStatus,
+                            matchedSource: verifiedEvent.matchedSource,
+                            discrepancies: verifiedEvent.discrepancies
+                        })
+                    };
+                }));
             }
             else {
                 // If not valid ICAL, return the content as a single event description
-                events = [
-                    {
+                events = [{
                         name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
                         date: startDateTime || new Date().toISOString(),
                         time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
                         location,
                         description: icalContent,
                         venue: location,
-                        rating: location
-                            ? await ratingService.getRatingForPlace(location)
-                            : null
-                    }
-                ];
+                        online: false
+                    }];
             }
         }
         catch (parseError) {
@@ -85,16 +117,44 @@ app.get('/events', async (req, res) => {
                     location,
                     description: icalContent,
                     venue: location,
-                    rating: location
-                        ? await ratingService.getRatingForPlace(location)
-                        : null
+                    online: false
                 }];
+        }
+        if (maleFemaleRatio) {
+            const parts = maleFemaleRatio.split(':');
+            if (parts.length === 2) {
+                const male = parseFloat(parts[0]);
+                const female = parseFloat(parts[1]);
+                if (!isNaN(male) && !isNaN(female)) {
+                    events = events.filter(e => typeof e.malePercentage === 'number' &&
+                        typeof e.femalePercentage === 'number' &&
+                        Math.abs(e.malePercentage - male) <= 10 &&
+                        Math.abs(e.femalePercentage - female) <= 10);
+                }
+            }
+        }
+        if (maxPrice) {
+            const priceLimit = parseFloat(maxPrice);
+            if (!isNaN(priceLimit)) {
+                events = events.filter(e => {
+                    if (!e.price)
+                        return false;
+                    const num = parseFloat(e.price.replace(/[^0-9.]/g, ''));
+                    return !isNaN(num) && num <= priceLimit;
+                });
+            }
+        }
+        if (onlineOnly) {
+            events = events.filter(e => e.online === true);
         }
         res.json({
             location,
             genre: genre || null,
             startDateTime: startDateTime || null,
             endDateTime: endDateTime || null,
+            maleFemaleRatio: maleFemaleRatio || null,
+            onlineOnly,
+            maxPrice: maxPrice || null,
             events,
             icalContent: icalContent,
             timestamp: new Date().toISOString()
@@ -170,50 +230,67 @@ app.get('/events', async (req, res) => {
 });
 app.post('/events', async (req, res) => {
     try {
-        const { location = 'San Francisco', genre, startDateTime, endDateTime } = req.body;
+        const { location = 'San Francisco', genre, startDateTime, endDateTime, maleFemaleRatio, onlineOnly, maxPrice, enableVerification } = req.body;
         console.log(`Fetching events for location: ${location}`, {
             genre: genre || 'any',
             startDateTime: startDateTime || 'not specified',
-            endDateTime: endDateTime || 'not specified'
+            endDateTime: endDateTime || 'not specified',
+            maleFemaleRatio: maleFemaleRatio || 'none',
+            onlineOnly,
+            maxPrice: maxPrice || 'none',
+            enableVerification
         });
         const icalContent = await perplexityService.getEventsForLocation(location, {
             genre,
             startDateTime,
-            endDateTime
+            endDateTime,
+            enableVerification
         });
         // Parse ICAL content to extract events array
         let events = [];
         try {
             if (icalParser.isValidICalContent(icalContent)) {
                 const parsedCalendar = await icalParser.parseICalContent(icalContent);
-                events = await Promise.all(parsedCalendar.events.map(async (event) => ({
-                    name: event.summary,
-                    date: event.start.toISOString(),
-                    time: event.start.toLocaleTimeString(),
-                    location: event.location,
-                    description: event.description,
-                    url: event.url,
-                    venue: event.location,
-                    rating: event.location
-                        ? await ratingService.getRatingForPlace(event.location)
-                        : null
-                })));
+                events = await Promise.all(parsedCalendar.events.map(async (event) => {
+                    const ratio = icalParser.extractGenderRatio(event.description);
+                    const rating = await ratingService.getRatingForPlace(event.location || '');
+                    // Check if this is a verified event
+                    const verifiedEvent = event;
+                    const hasVerification = 'confidence' in verifiedEvent;
+                    return {
+                        name: event.summary,
+                        date: event.start.toISOString(),
+                        time: event.start.toLocaleTimeString(),
+                        location: event.location,
+                        description: event.description,
+                        price: event.price,
+                        url: event.url || (hasVerification && verifiedEvent.matchedSource?.url),
+                        venue: event.location,
+                        malePercentage: ratio?.malePercentage,
+                        femalePercentage: ratio?.femalePercentage,
+                        online: icalParser.isOnlineEvent(event),
+                        rating,
+                        // Add verification fields if available
+                        ...(hasVerification && {
+                            confidence: verifiedEvent.confidence,
+                            verificationStatus: verifiedEvent.verificationStatus,
+                            matchedSource: verifiedEvent.matchedSource,
+                            discrepancies: verifiedEvent.discrepancies
+                        })
+                    };
+                }));
             }
             else {
                 // If not valid ICAL, return the content as a single event description
-                events = [
-                    {
+                events = [{
                         name: `Events in ${location}${genre ? ` - ${genre}` : ''}`,
                         date: startDateTime || new Date().toISOString(),
                         time: new Date(startDateTime || Date.now()).toLocaleTimeString(),
                         location,
                         description: icalContent,
                         venue: location,
-                        rating: location
-                            ? await ratingService.getRatingForPlace(location)
-                            : null
-                    }
-                ];
+                        online: false
+                    }];
             }
         }
         catch (parseError) {
@@ -226,16 +303,44 @@ app.post('/events', async (req, res) => {
                     location,
                     description: icalContent,
                     venue: location,
-                    rating: location
-                        ? await ratingService.getRatingForPlace(location)
-                        : null
+                    online: false
                 }];
+        }
+        if (maleFemaleRatio) {
+            const parts = maleFemaleRatio.split(':');
+            if (parts.length === 2) {
+                const male = parseFloat(parts[0]);
+                const female = parseFloat(parts[1]);
+                if (!isNaN(male) && !isNaN(female)) {
+                    events = events.filter(e => typeof e.malePercentage === 'number' &&
+                        typeof e.femalePercentage === 'number' &&
+                        Math.abs(e.malePercentage - male) <= 10 &&
+                        Math.abs(e.femalePercentage - female) <= 10);
+                }
+            }
+        }
+        if (maxPrice) {
+            const priceLimit = parseFloat(maxPrice);
+            if (!isNaN(priceLimit)) {
+                events = events.filter(e => {
+                    if (!e.price)
+                        return false;
+                    const num = parseFloat(e.price.replace(/[^0-9.]/g, ''));
+                    return !isNaN(num) && num <= priceLimit;
+                });
+            }
+        }
+        if (onlineOnly) {
+            events = events.filter(e => e.online === true);
         }
         res.json({
             location,
             genre: genre || null,
             startDateTime: startDateTime || null,
             endDateTime: endDateTime || null,
+            maleFemaleRatio: maleFemaleRatio || null,
+            onlineOnly,
+            maxPrice: maxPrice || null,
             events,
             icalContent: icalContent,
             timestamp: new Date().toISOString()

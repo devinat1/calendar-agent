@@ -9,11 +9,14 @@ export interface GetEventsOptions {
     genre?: string;
     startDateTime?: string;
     endDateTime?: string;
+    enableVerification?: boolean;
 }
 export declare class PerplexityService {
     private readonly apiKey;
     private readonly baseUrl;
     private readonly icalParser;
+    private readonly verificationService;
+    private readonly urlGenerator;
     constructor();
     /**
      * Get events for a location, with optional genre and time interval.
@@ -22,5 +25,9 @@ export declare class PerplexityService {
      */
     getEventsForLocation(location: string, options?: GetEventsOptions): Promise<string>;
     private saveToFile;
+    /**
+     * Generate ICAL string with verification metadata
+     */
+    private generateVerifiedICalString;
 }
 //# sourceMappingURL=perplexity.service.d.ts.map

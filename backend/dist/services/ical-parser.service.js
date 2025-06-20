@@ -82,6 +82,7 @@ class ICalParserService {
                         location: component.location,
                         url: component.url,
                         organizer: typeof component.organizer === 'object' ? component.organizer?.val : component.organizer,
+                        price: component.price || component.cost || this.extractPrice(component.description),
                     };
                     events.push(event);
                 }
@@ -180,6 +181,61 @@ class ICalParserService {
         });
     }
     /**
+     * Extract male/female ratio from event description if present.
+     * Expects patterns like "60% male, 40% female".
+     */
+    extractGenderRatio(description) {
+        if (!description)
+            return null;
+        const maleMatch = description.match(/(\d+)%\s*(?:male|men)/i);
+        const femaleMatch = description.match(/(\d+)%\s*(?:female|women)/i);
+        if (maleMatch && femaleMatch) {
+            const male = parseInt(maleMatch[1], 10);
+            const female = parseInt(femaleMatch[1], 10);
+            if (!isNaN(male) && !isNaN(female)) {
+                return { malePercentage: male, femalePercentage: female };
+            }
+        }
+        return null;
+    }
+    /**
+     * Attempt to extract a price from the event description.
+     * Looks for patterns like "$20" or "Price: 15".
+     */
+    extractPrice(description) {
+        if (!description)
+            return null;
+        // Match $20, 20 USD, Price: 20, Cost: $15 etc
+        const priceRegex = /(\$\s?\d+(?:\.\d{1,2})?)|(?:price|cost)[:\s]*\$?(\d+(?:\.\d{1,2})?)/i;
+        const match = description.match(priceRegex);
+        if (match) {
+            return match[1] || (match[2] ? `$${match[2]}` : null);
+        }
+        return null;
+    }
+    /**
+     * Filter events by desired male/female ratio with optional tolerance.
+     */
+    getEventsByGenderRatio(parsedCalendar, malePercentage, femalePercentage, tolerance = 10) {
+        return parsedCalendar.events.filter(event => {
+            const ratio = this.extractGenderRatio(event.description);
+            if (!ratio)
+                return false;
+            return (Math.abs(ratio.malePercentage - malePercentage) <= tolerance &&
+                Math.abs(ratio.femalePercentage - femalePercentage) <= tolerance);
+        });
+    }
+    /**
+     * Determine if an event is online/virtual based on description or location.
+     */
+    isOnlineEvent(event) {
+        const text = `${event.location || ''} ${event.description || ''}`.toLowerCase();
+        return /online|virtual|zoom|webinar/.test(text);
+    }
+    filterOnlineEvents(parsedCalendar) {
+        return parsedCalendar.events.filter(event => this.isOnlineEvent(event));
+    }
+    /**
      * Convert parsed calendar back to ICAL string format
      * @param parsedCalendar Parsed calendar data
      * @returns ICAL content as string
@@ -211,6 +267,9 @@ class ICalParserService {
             }
             if (event.url) {
                 icalString += `URL:${event.url}\n`;
+            }
+            if (event.price) {
+                icalString += `PRICE:${event.price}\n`;
             }
             icalString += 'END:VEVENT\n';
         }
