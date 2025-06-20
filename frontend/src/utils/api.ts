@@ -1,9 +1,10 @@
 import { EventSearchRequest, EventSearchResponse, ApiError } from '@/types/events';
 
-// Default to the deployed Vercel backend when no environment variable is set
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  'https://perplexity-events-backend.vercel.app';
+// Use localhost for development, deployed backend for production
+const API_BASE_URL = 
+  process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:5000'
+    : process.env.NEXT_PUBLIC_API_URL || 'https://perplexity-events-backend.vercel.app';
 
 export async function searchEvents(params: EventSearchRequest): Promise<EventSearchResponse> {
   try {

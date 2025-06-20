@@ -8,12 +8,23 @@ import { RatingService } from './services/rating.service';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+const corsOptions = {
+  origin: [
+    'http://localhost:3000', // Frontend development server
+    'http://127.0.0.1:3000', // Alternative localhost format
+    process.env.FRONTEND_URL || 'https://calendar-agent-1lar.vercel.app'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+};
+
+app.use(cors(corsOptions));
 // Handle CORS preflight requests
-app.options('*', cors());
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // Initialize services
