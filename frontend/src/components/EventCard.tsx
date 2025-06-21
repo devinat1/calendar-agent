@@ -59,7 +59,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+    <div className="bg-white/70 backdrop-blur-lg border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow">
       {getVerificationBadge()}
       
       <h3 className="text-xl font-semibold mb-2">{event.name}</h3>
