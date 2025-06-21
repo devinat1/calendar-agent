@@ -63,6 +63,8 @@ export const theme = createTheme({
   },
   typography: {
     fontFamily: [
+      '"SF Pro Text"',
+      '"SF Pro Display"',
       'Roboto',
       '-apple-system',
       'BlinkMacSystemFont',

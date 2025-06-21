@@ -7,6 +7,8 @@ import "@fontsource/roboto/300.css";
 import "@fontsource/roboto/400.css";
 import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
+import { SfProText } from 'sf-pro/text';
+import { SfProDisplay } from 'sf-pro/display';
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={`${SfProText.variable} ${SfProDisplay.variable}`}>
+      <body className={SfProText.className}>
         <AppRouterCacheProvider>
           <ThemeProvider theme={theme}>
             <CssBaseline />
