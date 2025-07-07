@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Event } from '../types/events';
 
 interface EventCardProps {
@@ -6,6 +6,8 @@ interface EventCardProps {
 }
 
 const EventCard: React.FC<EventCardProps> = ({ event }) => {
+  const [showDemographics, setShowDemographics] = useState(false);
+
   const getVerificationBadge = () => {
     if (!event.verificationStatus) return null;
 
@@ -56,6 +58,113 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
 
   const formatTime = (timeString: string | undefined) => {
     return timeString || 'Time TBD';
+  };
+
+  const renderDemographicAnalysis = () => {
+    if (!event.demographicAnalysis) return null;
+
+    const { demographicAnalysis } = event;
+    const hasGenderData = event.malePercentage !== undefined && event.femalePercentage !== undefined;
+    const hasAgeData = demographicAnalysis.ageDistribution !== undefined;
+    const hasEthnicityData = demographicAnalysis.ethnicityDistribution !== undefined;
+
+    if (!hasGenderData && !hasAgeData && !hasEthnicityData) return null;
+
+    return (
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+        <button
+          onClick={() => setShowDemographics(!showDemographics)}
+          className="flex items-center justify-between w-full text-left"
+        >
+          <h4 className="font-semibold text-gray-800 flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Demographic Analysis
+          </h4>
+          <svg 
+            className={`w-5 h-5 transform transition-transform ${showDemographics ? 'rotate-180' : ''}`}
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {showDemographics && (
+          <div className="mt-3 space-y-4">
+            {/* Gender Distribution */}
+            {hasGenderData && (
+              <div>
+                <h5 className="text-sm font-medium text-gray-700 mb-2">Gender Distribution</h5>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
+                    <span className="text-sm">Male: {event.malePercentage}%</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 bg-pink-500 rounded mr-2"></div>
+                    <span className="text-sm">Female: {event.femalePercentage}%</span>
+                  </div>
+                </div>
+                <div className="mt-2 bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-500 h-2 rounded-l-full"
+                    style={{ width: `${event.malePercentage}%` }}
+                  ></div>
+                  <div 
+                    className="bg-pink-500 h-2 rounded-r-full"
+                    style={{ width: `${event.femalePercentage}%`, marginTop: '-8px', marginLeft: `${event.malePercentage}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
+            {/* Age Distribution */}
+            {hasAgeData && (
+              <div>
+                <h5 className="text-sm font-medium text-gray-700 mb-2">Age Distribution</h5>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {Object.entries(demographicAnalysis.ageDistribution!).map(([ageRange, percentage]) => (
+                    <div key={ageRange} className="flex justify-between">
+                      <span>{ageRange}:</span>
+                      <span>{percentage}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Ethnicity Distribution */}
+            {hasEthnicityData && (
+              <div>
+                <h5 className="text-sm font-medium text-gray-700 mb-2">Ethnicity Distribution</h5>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {Object.entries(demographicAnalysis.ethnicityDistribution!).map(([ethnicity, percentage]) => (
+                    <div key={ethnicity} className="flex justify-between">
+                      <span className="capitalize">{ethnicity}:</span>
+                      <span>{percentage}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Analysis Info */}
+            <div className="pt-2 border-t border-gray-200">
+              <p className="text-xs text-gray-500">
+                Analysis based on {demographicAnalysis.totalCount} identified names
+                {demographicAnalysis.confidence > 0 && (
+                  <span> • {demographicAnalysis.confidence}% confidence</span>
+                )}
+                <span> • Method: {demographicAnalysis.analysisMethod}</span>
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -120,6 +229,8 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
       {event.description && (
         <p className="mt-4 text-sm text-gray-700 line-clamp-3">{event.description}</p>
       )}
+      
+      {renderDemographicAnalysis()}
       
       {event.matchedSource && (
         <div className="mt-2 pt-2 border-t border-gray-200">

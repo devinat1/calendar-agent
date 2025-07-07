@@ -9,6 +9,7 @@ const cors_1 = __importDefault(require("cors"));
 const perplexity_service_1 = require("./services/perplexity.service");
 const ical_parser_service_1 = require("./services/ical-parser.service");
 const rating_service_1 = require("./services/rating.service");
+const demographic_analysis_service_1 = require("./services/demographic-analysis.service");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
@@ -31,6 +32,7 @@ app.use(express_1.default.json());
 const perplexityService = new perplexity_service_1.PerplexityService();
 const icalParser = new ical_parser_service_1.ICalParserService();
 const ratingService = new rating_service_1.RatingService();
+const demographicAnalysisService = new demographic_analysis_service_1.DemographicAnalysisService();
 // Routes
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
@@ -68,6 +70,8 @@ app.get('/events', async (req, res) => {
                 events = await Promise.all(parsedCalendar.events.map(async (event) => {
                     const ratio = icalParser.extractGenderRatio(event.description);
                     const rating = await ratingService.getRatingForPlace(event.location || '');
+                    // Enhanced demographic analysis
+                    const demographicAnalysis = await demographicAnalysisService.analyzeEventDemographics(event.description || '');
                     // Check if this is a verified event
                     const verifiedEvent = event;
                     const hasVerification = 'confidence' in verifiedEvent;
@@ -80,10 +84,18 @@ app.get('/events', async (req, res) => {
                         price: event.price,
                         url: event.url || (hasVerification && verifiedEvent.matchedSource?.url),
                         venue: event.location,
-                        malePercentage: ratio?.malePercentage,
-                        femalePercentage: ratio?.femalePercentage,
+                        malePercentage: demographicAnalysis.malePercentage || ratio?.malePercentage,
+                        femalePercentage: demographicAnalysis.femalePercentage || ratio?.femalePercentage,
                         online: icalParser.isOnlineEvent(event),
                         rating,
+                        // Add enhanced demographic data
+                        demographicAnalysis: {
+                            totalCount: demographicAnalysis.totalCount,
+                            ageDistribution: demographicAnalysis.ageDistribution,
+                            ethnicityDistribution: demographicAnalysis.ethnicityDistribution,
+                            confidence: demographicAnalysis.confidence,
+                            analysisMethod: demographicAnalysis.analysisMethod
+                        },
                         // Add verification fields if available
                         ...(hasVerification && {
                             confidence: verifiedEvent.confidence,
@@ -254,6 +266,8 @@ app.post('/events', async (req, res) => {
                 events = await Promise.all(parsedCalendar.events.map(async (event) => {
                     const ratio = icalParser.extractGenderRatio(event.description);
                     const rating = await ratingService.getRatingForPlace(event.location || '');
+                    // Enhanced demographic analysis
+                    const demographicAnalysis = await demographicAnalysisService.analyzeEventDemographics(event.description || '');
                     // Check if this is a verified event
                     const verifiedEvent = event;
                     const hasVerification = 'confidence' in verifiedEvent;
@@ -266,10 +280,18 @@ app.post('/events', async (req, res) => {
                         price: event.price,
                         url: event.url || (hasVerification && verifiedEvent.matchedSource?.url),
                         venue: event.location,
-                        malePercentage: ratio?.malePercentage,
-                        femalePercentage: ratio?.femalePercentage,
+                        malePercentage: demographicAnalysis.malePercentage || ratio?.malePercentage,
+                        femalePercentage: demographicAnalysis.femalePercentage || ratio?.femalePercentage,
                         online: icalParser.isOnlineEvent(event),
                         rating,
+                        // Add enhanced demographic data
+                        demographicAnalysis: {
+                            totalCount: demographicAnalysis.totalCount,
+                            ageDistribution: demographicAnalysis.ageDistribution,
+                            ethnicityDistribution: demographicAnalysis.ethnicityDistribution,
+                            confidence: demographicAnalysis.confidence,
+                            analysisMethod: demographicAnalysis.analysisMethod
+                        },
                         // Add verification fields if available
                         ...(hasVerification && {
                             confidence: verifiedEvent.confidence,

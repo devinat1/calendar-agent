@@ -9,6 +9,26 @@ export interface EventSearchRequest {
   enableVerification?: boolean;
 }
 
+export interface DemographicAnalysis {
+  totalCount: number;
+  ageDistribution?: {
+    '18-24': number;
+    '25-34': number;
+    '35-44': number;
+    '45-54': number;
+    '55+': number;
+  };
+  ethnicityDistribution?: {
+    white: number;
+    black: number;
+    hispanic: number;
+    asian: number;
+    other: number;
+  };
+  confidence: number;
+  analysisMethod: 'name-based' | 'ml-enhanced' | 'hybrid';
+}
+
 export interface Event {
   name: string;
   date: string;
@@ -22,6 +42,8 @@ export interface Event {
   femalePercentage?: number;
   online?: boolean;
   rating?: number;
+  // Enhanced demographic analysis
+  demographicAnalysis?: DemographicAnalysis;
   // Verification fields
   confidence?: number;
   verificationStatus?: 'verified' | 'partial' | 'unverified';
